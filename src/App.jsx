@@ -6,7 +6,6 @@ import { ChevronRight, ChevronLeft, Download, AlertCircle, CheckCircle2, Compass
 // ==========================================================================
 
 const FOUNDATION_QUESTIONS = {
-  // Context the original questionnaires assumed but never asked
   primaryConcern: { type: 'longtext', label: "What is the main reason you're taking this assessment? Describe in your own words." },
   symptomTimeline: { type: 'longtext', label: "When did you first notice these issues? Was there a specific event, life change, or illness around that time?" },
   previousAttempts: { type: 'longtext', label: "What have you tried before to address these issues? (diets, programs, supplements, therapies, doctors)" },
@@ -37,9 +36,28 @@ const FOUNDATION_QUESTIONS = {
     label: "Family history of chronic conditions. Select all that apply.",
     options: ['Heart disease', 'Type 2 diabetes', 'Autoimmune disease', 'Cancer', 'Thyroid disease', 'Mental health conditions', 'None known'],
   },
+  smokingStatus: {
+    type: 'select',
+    label: "Smoking / nicotine status:",
+    options: ['Never smoked', 'Former smoker', 'Occasional', 'Daily smoker / vaper'],
+  },
+  emotionalBaseline: {
+    type: 'select',
+    label: "How would you describe your overall emotional state lately?",
+    options: ['Stable and content', 'Generally okay with ups and downs', 'Frequently anxious or low', 'Persistently struggling', 'In crisis'],
+  },
+};
+
+const EATING_HABITS_QUESTIONS = {
+  favoriteFoods: { type: 'longtext', label: "What are your favorite foods? Be specific — list the dishes, brands, or cuisines you reach for." },
+  cravedFoods: { type: 'longtext', label: "What foods do you crave? When and why do you think these cravings happen?" },
+  hardestToGiveUp: { type: 'longtext', label: "Which foods would be hardest to give up if a doctor recommended it?" },
+  dislikedFoods: { type: 'longtext', label: "Are there foods you actively dislike or avoid? Any reason behind it?" },
+  suspectedTriggers: { type: 'longtext', label: "Are there any foods you suspect don't agree with you, even if you haven't been formally diagnosed?" },
+  recentDietChanges: { type: 'longtext', label: "Have you changed how you eat recently? More carbs, bigger portions, intermittent fasting, anything else?" },
   hydration: {
     type: 'select',
-    label: "How much water do you drink on a typical day?",
+    label: "Daily water intake:",
     options: ['Less than 0.5L', '0.5–1L', '1–2L', '2–3L', 'More than 3L'],
   },
   caffeine: {
@@ -52,30 +70,30 @@ const FOUNDATION_QUESTIONS = {
     label: "Alcohol consumption:",
     options: ['Never', 'Rarely (special occasions)', 'Weekly (1–3 drinks)', 'Several times per week', 'Daily'],
   },
-  smokingStatus: {
+  fizzyDrinks: {
     type: 'select',
-    label: "Smoking / nicotine status:",
-    options: ['Never smoked', 'Former smoker', 'Occasional', 'Daily smoker / vaper'],
+    label: "Fizzy / soft drinks:",
+    options: ['Never', 'Rarely', 'Weekly', 'Daily'],
   },
-  sleepHours: {
+  organicPercent: {
     type: 'select',
-    label: "Average hours of sleep per night:",
-    options: ['Less than 5', '5–6', '6–7', '7–8', '8–9', 'More than 9'],
+    label: "Approximately what percentage of your food is organic / bio-sourced?",
+    options: ['Almost none', 'About 25%', 'About 50%', 'About 75%', 'Almost all'],
   },
-  sleepQuality: {
+  highHeatCooking: {
     type: 'select',
-    label: "How would you rate your sleep quality?",
-    options: ['Refreshing, deep', 'Generally good', 'Fragmented but okay', 'Restless / poor', 'Severe insomnia'],
+    label: "How often do you eat grilled, barbecued, or high-temperature fried food?",
+    options: ['Rarely or never', 'Occasionally', 'Weekly', 'Several times per week', 'Daily'],
   },
-  bedtime: {
+  oilyFish: {
     type: 'select',
-    label: "Typical bedtime:",
-    options: ['Before 22:00', '22:00–23:00', '23:00–00:00', '00:00–01:30', 'After 01:30'],
+    label: "How often do you eat oily fish (salmon, mackerel, sardines, anchovy)?",
+    options: ['Never', 'Monthly', 'Weekly', '2–3x per week', 'More than 3x per week'],
   },
-  exerciseFrequency: {
+  artificialSweeteners: {
     type: 'select',
-    label: "Exercise frequency:",
-    options: ['Sedentary', 'Light activity 1–2x/week', 'Moderate 3–4x/week', 'Vigorous 5+x/week', 'Athlete-level training'],
+    label: "Artificial sweeteners (diet drinks, sugar-free gum, packaged 'sugar-free' products):",
+    options: ['Never use', 'Rarely', 'Sometimes', 'Daily'],
   },
   eatingSpeed: {
     type: 'select',
@@ -92,10 +110,144 @@ const FOUNDATION_QUESTIONS = {
     label: "Bowel movement frequency:",
     options: ['3+ times per day', '1–2 times daily', 'Every other day', 'Less than 3x per week', 'Highly variable'],
   },
-  emotionalBaseline: {
+};
+
+const FOOD_DIARY_QUESTIONS = {
+  breakfast: { type: 'longtext', label: "Describe a typical breakfast — what you eat, where you get it, and the time you eat it. If you skip breakfast, write that." },
+  lunch: { type: 'longtext', label: "Describe a typical lunch — what, where, and when." },
+  dinner: { type: 'longtext', label: "Describe a typical dinner — what, where, and when." },
+  snacks: { type: 'longtext', label: "Snacks throughout the day — what do you reach for, and roughly when?" },
+  drinks: { type: 'longtext', label: "Beverages across the day — water, tea, coffee, juice, soda, alcohol. Approximate quantities." },
+  weekendDifference: { type: 'longtext', label: "How does weekend eating differ from weekdays, if at all? Late brunches, restaurant meals, more drinking, more snacks?" },
+};
+
+const DAILY_RHYTHM_QUESTIONS = {
+  wakeTime: {
     type: 'select',
-    label: "How would you describe your overall emotional state lately?",
-    options: ['Stable and content', 'Generally okay with ups and downs', 'Frequently anxious or low', 'Persistently struggling', 'In crisis'],
+    label: "Typical weekday wake time:",
+    options: ['Before 06:00', '06:00–07:00', '07:00–08:00', '08:00–09:00', '09:00–10:00', 'After 10:00'],
+  },
+  bedtime: {
+    type: 'select',
+    label: "Typical weekday bedtime:",
+    options: ['Before 22:00', '22:00–23:00', '23:00–00:00', '00:00–01:30', 'After 01:30'],
+  },
+  fallAsleepTime: {
+    type: 'select',
+    label: "How long does it usually take you to fall asleep?",
+    options: ['Within 10 minutes', '10–20 minutes', '20–40 minutes', 'Over 40 minutes', 'Highly variable'],
+  },
+  sleepHours: {
+    type: 'select',
+    label: "Average hours of sleep per night:",
+    options: ['Less than 5', '5–6', '6–7', '7–8', '8–9', 'More than 9'],
+  },
+  sleepQuality: {
+    type: 'select',
+    label: "How would you rate your sleep quality?",
+    options: ['Refreshing, deep', 'Generally good', 'Fragmented but okay', 'Restless / poor', 'Severe insomnia'],
+  },
+  nightWakings: {
+    type: 'select',
+    label: "Do you wake during the night?",
+    options: ['Never', 'Occasionally', 'Most nights — once', 'Most nights — multiple times'],
+  },
+  workStart: {
+    type: 'select',
+    label: "What time does your work day start?",
+    options: ['Before 08:00', '08:00–09:00', '09:00–10:00', 'After 10:00', 'No fixed start (flexible / not working)'],
+  },
+  exerciseFrequency: {
+    type: 'select',
+    label: "Exercise frequency:",
+    options: ['Sedentary', 'Light activity 1–2x/week', 'Moderate 3–4x/week', 'Vigorous 5+x/week', 'Athlete-level training'],
+  },
+  exerciseType: { type: 'longtext', label: "What kind of exercise do you do? (swimming, gym, cycling, sports, walking, etc.)" },
+  exerciseTiming: {
+    type: 'select',
+    label: "When during the day do you usually train?",
+    options: ['Morning (before 10:00)', 'Midday (10:00–14:00)', 'Afternoon (14:00–18:00)', 'Evening (18:00–21:00)', 'Late evening (after 21:00)', "Doesn't apply"],
+  },
+  eveningRoutine: { type: 'longtext', label: "What does your evening look like between work ending and sleep? (TV, reading, phone, friends, going out)" },
+  screensBeforeBed: {
+    type: 'select',
+    label: "Screen time in the hour before bed:",
+    options: ['No screens', 'A few minutes', 'Up to an hour', 'More than an hour, right up until sleep'],
+  },
+  stressPractice: {
+    type: 'select',
+    label: "Do you have any daily practice for managing stress?",
+    options: ['Yes — regular practice (meditation, breathwork, yoga, journaling)', 'Sometimes', 'Rarely', 'No practice'],
+  },
+};
+
+const WEEKEND_QUESTIONS = {
+  weekendWakeTime: {
+    type: 'select',
+    label: "Typical weekend wake time:",
+    options: ['Before 07:00', '07:00–08:00', '08:00–09:00', '09:00–10:00', '10:00–11:00', 'After 11:00'],
+  },
+  weekendBedtime: {
+    type: 'select',
+    label: "Typical weekend bedtime:",
+    options: ['Before 22:00', '22:00–23:00', '23:00–00:00', '00:00–02:00', 'After 02:00'],
+  },
+  weekendActivities: { type: 'longtext', label: "How do you typically spend weekends? Hobbies, social, rest, work?" },
+  weekendMood: {
+    type: 'select',
+    label: "How does your mood typically shift on weekends compared to weekdays?",
+    options: ['Much better — clear contrast', 'Somewhat better', 'About the same', 'Worse — Sunday dread or restless', "Doesn't really apply"],
+  },
+};
+
+const ENERGY_QUESTIONS = {
+  needLongSleep: { type: 'yesno', label: "Do you need more than 8 hours of sleep to feel okay?" },
+  lowEnergyOverall: { type: 'yesno', label: "Is your energy lower than you would like?" },
+  hardToGetUp: { type: 'yesno', label: "Is it hard to get out of bed in the morning?" },
+  daytimeSleepy: { type: 'yesno', label: "Do you feel sleepy or drowsy during the day?" },
+  hangerDizzy: { type: 'yesno', label: "Do you feel dizzy, irritable, or shaky if you don't eat for a few hours?" },
+  caffeineDependent: { type: 'yesno', label: "Do you rely on caffeine, sugar, or nicotine to get through the day?" },
+  concentrationIssues: { type: 'yesno', label: "Is it hard to concentrate?" },
+  dizzyOnStanding: { type: 'yesno', label: "Do you get dizzy if you stand up quickly?" },
+  unexplainedExhaustion: { type: 'yesno', label: "Do you experience unexplained exhaustion or general weakness?" },
+  energyDipTime: {
+    type: 'select',
+    label: "What time of day are you usually least energetic?",
+    options: ['Morning (just after waking)', 'Late morning (10:00–12:00)', 'Midday (around noon)', 'Afternoon (14:00–16:00)', 'Evening', 'Variable'],
+  },
+};
+
+const WORK_QUESTIONS = {
+  workEnvironment: {
+    type: 'select',
+    label: "Work environment:",
+    options: ['High-stress / high-stakes', 'Moderate stress, manageable', 'Low stress', 'Variable / project-based', 'Not currently working'],
+  },
+  workHours: {
+    type: 'select',
+    label: "Typical hours per work day:",
+    options: ['Under 6', '6–8', '8–10', '10–12', 'More than 12', "Doesn't apply"],
+  },
+  remoteOrOffice: {
+    type: 'select',
+    label: "Where do you work?",
+    options: ['Fully remote', 'Hybrid', 'Office / on-site', 'Travel-heavy', "Doesn't apply"],
+  },
+  screenTime: {
+    type: 'select',
+    label: "Total daily screen time (work + personal combined):",
+    options: ['Under 4 hours', '4–6 hours', '6–8 hours', '8–10 hours', 'More than 10 hours'],
+  },
+  workStressors: { type: 'longtext', label: "What aspects of your work create the most stress? Deadlines, people, ambiguity, financial pressure, after-hours demands?" },
+  jobSatisfaction: {
+    type: 'select',
+    label: "Overall, how satisfied are you with your work?",
+    options: ['Very satisfied', 'Mostly satisfied', 'Mixed', 'Mostly dissatisfied', 'Actively unhappy'],
+  },
+  recoveryAfterWork: {
+    type: 'select',
+    label: "How well do you actually disconnect from work after hours?",
+    options: ['Cleanly — work stays at work', 'Mostly disconnect', 'Often thinking about it', 'Constantly connected / checking', "Doesn't apply"],
   },
 };
 
@@ -213,6 +365,21 @@ function calculateLevel(score, max) {
   return { level: 'Low', pct, color: '#7A9B7E' };
 }
 
+// Helper: count yes answers in energy section
+function countYes(obj, keys) {
+  return keys.filter(k => obj[k] === 'Yes').length;
+}
+
+// Helper: detect late timing (after midnight bedtime)
+function isLateBedtime(bedtime) {
+  return ['00:00–01:30', 'After 01:30', '00:00–02:00', 'After 02:00'].includes(bedtime);
+}
+
+// Helper: detect short sleep
+function isShortSleep(sleepHours) {
+  return ['Less than 5', '5–6', '6–7'].includes(sleepHours);
+}
+
 function generateInsights(data) {
   const insights = [];
   const flags = [];
@@ -226,10 +393,15 @@ function generateInsights(data) {
     scores[key] = { score, max, ...calculateLevel(score, max) };
   });
 
-  // Pattern detection
   const f = data.foundation || {};
+  const e = data.eatingHabits || {};
+  const fd = data.foodDiary || {};
+  const r = data.dailyRhythm || {};
+  const w = data.weekend || {};
+  const en = data.energy || {};
+  const wk = data.work || {};
 
-  // Gut-immune axis pattern
+  // ====== PATTERN: Gut-Immune Axis ======
   if (scores.digestive?.pct > 35 && scores.autoimmune?.pct > 25) {
     insights.push({
       title: 'Gut-Immune Axis Activation',
@@ -237,36 +409,58 @@ function generateInsights(data) {
     });
   }
 
-  // Antibiotic history flag
-  if (f.childhoodAntibiotics === 'Frequently (more than 10 courses)' || f.childhoodAntibiotics === 'Several times (4–10 courses)') {
-    if (scores.digestive?.pct > 25 || scores.autoimmune?.pct > 25) {
-      insights.push({
-        title: 'Microbiome History Significant',
-        body: 'Heavy antibiotic exposure during childhood often disrupts the developing microbiome during a critical immune-tolerance window. Combined with your current digestive or inflammatory patterns, this points to a microbiome that may benefit from focused rebuilding — diverse fiber sources, fermented foods, targeted probiotics, and reducing further microbial stressors.',
-      });
-    }
-  }
-
-  // Blood sugar dysregulation
-  if (scores.pancreas?.pct > 30) {
+  // ====== PATTERN: Microbiome history ======
+  const heavyAntibiotics = ['Frequently (more than 10 courses)', 'Several times (4–10 courses)'].includes(f.childhoodAntibiotics);
+  if (heavyAntibiotics && (scores.digestive?.pct > 25 || scores.autoimmune?.pct > 25)) {
     insights.push({
-      title: 'Blood Sugar Dysregulation',
-      body: 'Your pancreas section scores suggest your body is having trouble keeping glucose stable between meals. The cravings, energy crashes, and difficulty losing weight all share this root. Stable blood sugar starts with protein and fat at breakfast, eating within consistent windows, and avoiding liquid sugars (juice, sweetened drinks).',
+      title: 'Microbiome History Significant',
+      body: 'Heavy antibiotic exposure during childhood often disrupts the developing microbiome during a critical immune-tolerance window. Combined with your current digestive or inflammatory patterns, this points to a microbiome that may benefit from focused rebuilding — diverse fiber sources, fermented foods, targeted probiotics, and reducing further microbial stressors.',
     });
   }
 
-  // Cortisol / sleep / stress pattern
-  const lateSleep = ['00:00–01:30', 'After 01:30'].includes(f.bedtime);
-  const poorSleep = ['Restless / poor', 'Severe insomnia'].includes(f.sleepQuality);
-  const highStress = f.emotionalBaseline === 'Frequently anxious or low' || f.emotionalBaseline === 'Persistently struggling';
-  if (lateSleep || poorSleep || highStress || scores.endocrine?.pct > 30) {
-    insights.push({
-      title: 'Cortisol & Recovery Stress',
-      body: 'Late bedtimes, fragmented sleep, and persistent stress all push the body into a sympathetic-dominant state where cortisol stays elevated when it should drop. This drives visceral fat storage, blood sugar instability, suppressed thyroid function, and reduced sex hormone production. The single highest-impact intervention is moving bedtime to before midnight to capture the natural cortisol reset window.',
-    });
+  // ====== PATTERN: Blood Sugar Rollercoaster (NEW — uses food diary) ======
+  const skipsBreakfast = fd.breakfast && /skip|rarely|never|no breakfast|don't|nothing/i.test(fd.breakfast);
+  const lateDinner = fd.dinner && /(20|21|22|23):/.test(fd.dinner);
+  const sugaryDrinks = fd.drinks && /(juice|soda|cola|coke|fizzy|sprite|fanta|sweet)/i.test(fd.drinks);
+  const carbCravings = e.cravedFoods && /(bread|pasta|pizza|sweet|chocolate|sugar|cake|crackers|chips|cookies|carb)/i.test(e.cravedFoods);
+
+  if (scores.pancreas?.pct > 30 || (skipsBreakfast && lateDinner) || (sugaryDrinks && carbCravings)) {
+    let body = 'Your body is having trouble keeping glucose stable between meals. ';
+    const triggers = [];
+    if (skipsBreakfast) triggers.push('skipping breakfast lets cortisol run unchecked all morning');
+    if (lateDinner) triggers.push('late dinner timing disrupts overnight metabolic recovery');
+    if (sugaryDrinks) triggers.push('liquid sugar (juice, soda) spikes glucose without fiber to slow absorption');
+    if (carbCravings) triggers.push('carb cravings are often a downstream signal of the rollercoaster, not a separate problem');
+    if (triggers.length) body += 'Specifically, ' + triggers.join('; ') + '. ';
+    body += 'Stabilizing this typically starts with protein and fat at breakfast within an hour of waking, eating within consistent windows, and replacing liquid sugar with whole foods.';
+
+    insights.push({ title: 'Blood Sugar Dysregulation', body });
   }
 
-  // Atopic / allergy pattern
+  // ====== PATTERN: Cortisol & Recovery (uses daily rhythm + sleep) ======
+  const lateBed = isLateBedtime(r.bedtime);
+  const shortSleep = isShortSleep(r.sleepHours);
+  const poorSleep = ['Restless / poor', 'Severe insomnia'].includes(r.sleepQuality);
+  const highStress = ['Frequently anxious or low', 'Persistently struggling'].includes(f.emotionalBaseline);
+  const screensLate = ['More than an hour, right up until sleep'].includes(r.screensBeforeBed);
+  const noStressPractice = r.stressPractice === 'No practice';
+  const lateExercise = ['Late evening (after 21:00)'].includes(r.exerciseTiming);
+
+  if (lateBed || poorSleep || highStress || scores.endocrine?.pct > 30 || screensLate) {
+    let body = 'Late bedtimes, fragmented sleep, and persistent stress all push the body into a sympathetic-dominant state where cortisol stays elevated when it should drop. This drives visceral fat storage, blood sugar instability, suppressed thyroid function, and reduced sex hormone production. ';
+    const factors = [];
+    if (lateBed) factors.push('your bedtime falls past midnight, missing the natural cortisol reset window of 22:00–00:00');
+    if (shortSleep) factors.push('total sleep duration is below restorative levels');
+    if (screensLate) factors.push('screens until sleep suppress melatonin and prolong cortisol activity');
+    if (lateExercise) factors.push('exercising after 21:00 raises cortisol exactly when it should be falling');
+    if (noStressPractice) factors.push('no daily stress-discharge practice means cortisol accumulates without release');
+    if (factors.length) body += 'In your case: ' + factors.join('; ') + '. ';
+    body += 'The single highest-impact intervention is moving bedtime to before midnight to capture the natural cortisol reset window.';
+
+    insights.push({ title: 'Cortisol & Recovery Stress', body });
+  }
+
+  // ====== PATTERN: Atopic predisposition ======
   const atopic = (f.familyAtopic || []).filter(x => x !== 'None known').length > 0;
   if (atopic && scores.autoimmune?.pct > 20) {
     insights.push({
@@ -275,28 +469,95 @@ function generateInsights(data) {
     });
   }
 
-  // Eating mechanics
-  if (f.eatingSpeed === 'Very fast — barely chew' || f.eatingSpeed === 'Fast — finish before others') {
-    flags.push({
-      icon: '⚠',
-      text: 'Eating too fast contributes to bloating, incomplete digestion, and air swallowing. This is one of the easiest fixes available — putting the fork down between bites and chewing 20–30 times per mouthful changes digestion mechanics measurably within days.',
+  // ====== PATTERN: Oral Allergy Syndrome (NEW) ======
+  const oasFoods = /(apple|pear|peach|cherry|cherries|apricot|carrot|raw fruit|melon|kiwi|hazelnut|almond)/i;
+  const cookedTolerance = /(cooked|baked|boiled|stewed|fine when|okay when)/i;
+  if (e.suspectedTriggers && oasFoods.test(e.suspectedTriggers) && scores.autoimmune?.pct > 15) {
+    let body = 'You mentioned reactions to specific raw fruits or vegetables. This pattern is classic for Oral Allergy Syndrome (OAS) — a cross-reactivity where pollen-allergy proteins resemble proteins in certain raw foods. ';
+    if (cookedTolerance.test(e.suspectedTriggers)) {
+      body += 'The fact that cooking makes them tolerable confirms it: heat denatures the cross-reactive proteins. ';
+    }
+    body += 'OAS itself is rarely dangerous, but it indicates an active Th2/IgE allergic axis. The same immune dysregulation often amplifies seasonal symptoms, food-related inflammation, and skin reactivity.';
+    insights.push({ title: 'Oral Allergy Syndrome Pattern', body });
+  }
+
+  // ====== PATTERN: Weekend Contrast (NEW) ======
+  const weekendBetter = ['Much better — clear contrast', 'Somewhat better'].includes(w.weekendMood);
+  const highWorkStress = ['High-stress / high-stakes'].includes(wk.workEnvironment);
+  if (weekendBetter && (highWorkStress || highStress)) {
+    insights.push({
+      title: 'Work as Primary Stress Driver',
+      body: 'A clear mood improvement on weekends, combined with high work stress, points to your work environment as a primary driver of physiological stress. This matters because most interventions (better sleep, supplements, diet) work downstream of cortisol — but if cortisol is being pumped daily by work, the upstream fix is bigger. Boundaries around after-hours connectivity, micro-recovery during the workday, and structural conversations about workload may have more impact than any supplement.',
     });
   }
 
-  // Hydration
-  if (f.hydration === 'Less than 0.5L' || f.hydration === '0.5–1L') {
-    flags.push({
-      icon: '⚠',
-      text: 'Insufficient hydration slows digestion, concentrates urine, increases kidney load, and worsens fatigue. Aim for 30ml per kg of body weight as a baseline, more with caffeine or exercise.',
+  // ====== PATTERN: Energy Pattern Mapping (NEW) ======
+  const yesCount = countYes(en, ['needLongSleep', 'lowEnergyOverall', 'hardToGetUp', 'daytimeSleepy', 'hangerDizzy', 'caffeineDependent', 'concentrationIssues', 'dizzyOnStanding', 'unexplainedExhaustion']);
+  if (yesCount >= 5) {
+    let body = `Your energy pattern shows ${yesCount} out of 9 fatigue indicators. This level typically reflects a combination of three things working together: blood sugar instability, sleep architecture problems, and adrenal recovery deficit. `;
+    if (en.energyDipTime === 'Midday (around noon)') {
+      body += 'Your noon energy dip is a classic sign of cortisol exhaustion overlapping with insufficient morning fuel — your body has burned through what it had and is asking for help. ';
+    } else if (en.energyDipTime === 'Afternoon (14:00–16:00)') {
+      body += 'A 14:00–16:00 dip is the textbook adrenal afternoon crash, where post-lunch insulin meets already-low cortisol. ';
+    }
+    body += 'Improvement here is usually compounded — fixing sleep, food timing, and stress practices simultaneously yields more than fixing them sequentially.';
+    insights.push({ title: 'Multi-System Fatigue Pattern', body });
+  }
+
+  // ====== PATTERN: Late dinner + late bed digestive impact (NEW) ======
+  if (lateDinner && lateBed && scores.digestive?.pct > 25) {
+    insights.push({
+      title: 'Sleep-Digestion Conflict',
+      body: 'Eating late combined with late bedtime means your digestive system is working hard during the hours it should be at rest, and your body is in active digestion when sleep should be deepest. This often shows up as restless sleep, morning bloating, reflux at night, and morning fatigue despite sufficient hours. The fix is structural: leave at least three hours between dinner and sleep, or move dinner earlier rather than skipping it.',
     });
   }
 
-  // Late dinner pattern
-  if (lateSleep) {
-    flags.push({
-      icon: '⚠',
-      text: 'Bedtimes after midnight miss the natural cortisol reset window (22:00–00:00) where deepest restorative sleep occurs. Even with 7–8 hours of total sleep, the timing matters as much as the duration.',
+  // ====== PATTERN: Hypermobility + back pain context (NEW) ======
+  const hypermobile = (data.musculoskeletal || [])[1] >= 3; // hypermobility question, score 3+
+  const chronicBackPain = (data.musculoskeletal || [])[7] >= 2;
+  if (hypermobile && chronicBackPain) {
+    insights.push({
+      title: 'Hypermobility-Driven Pattern',
+      body: 'Strong hypermobility paired with chronic neck or back pain suggests your connective tissue is naturally lax and your muscles are doing extra work to stabilize joints that lack mechanical limits. This shows up as exhaustion, episodic flares, and difficulty with strength-based interventions. Targeted stabilization work (Pilates, hypermobility-specific physical therapy), collagen support, and avoiding overstretching are usually more useful than aggressive stretching or general fitness routines.',
     });
+  }
+
+  // ====== QUICK WINS / FLAGS ======
+
+  if (e.eatingSpeed === 'Very fast — barely chew' || e.eatingSpeed === 'Fast — finish before others') {
+    flags.push({ icon: '⚠', text: 'Eating too fast contributes to bloating, incomplete digestion, and air swallowing. Putting the fork down between bites and chewing 20–30 times changes digestion mechanics measurably within days.' });
+  }
+
+  if (e.hydration === 'Less than 0.5L' || e.hydration === '0.5–1L') {
+    flags.push({ icon: '⚠', text: 'Insufficient hydration slows digestion, concentrates urine, and worsens fatigue. Aim for 30ml per kg of body weight as a baseline.' });
+  }
+
+  if (lateBed) {
+    flags.push({ icon: '⚠', text: 'Bedtimes after midnight miss the natural cortisol reset window (22:00–00:00) where deepest restorative sleep occurs. The timing matters as much as the duration.' });
+  }
+
+  if (sugaryDrinks) {
+    flags.push({ icon: '⚠', text: 'Liquid sugar (juice, soda, sweetened coffee) hits the bloodstream without the fiber that slows whole-food sugar. Replacing these with water, sparkling water, or whole fruit alone can produce visible body composition changes within weeks.' });
+  }
+
+  if (lateExercise) {
+    flags.push({ icon: '⚠', text: 'Training late evening raises core body temperature and cortisol exactly when both should be falling for sleep. Moving training earlier — even by 90 minutes — often improves sleep quality dramatically.' });
+  }
+
+  if (e.fizzyDrinks === 'Daily') {
+    flags.push({ icon: '⚠', text: 'Daily fizzy drinks add carbonation-driven bloating on top of any sweeteners. Even unsweetened sparkling water in large volumes can worsen reflux and gas.' });
+  }
+
+  if (e.highHeatCooking === 'Several times per week' || e.highHeatCooking === 'Daily') {
+    flags.push({ icon: '⚠', text: 'Frequent high-heat cooking (grilling, frying, charring) creates advanced glycation end products (AGEs) and oxidized fats, both of which drive systemic inflammation. Lower-heat methods (steaming, slow-cooking, stewing) are gentler on inflamed systems.' });
+  }
+
+  if (en.caffeineDependent === 'Yes' && yesCount >= 4) {
+    flags.push({ icon: '⚠', text: 'Caffeine dependency layered on multi-system fatigue is essentially borrowing energy you do not have. The crash deepens the underlying deficit. Tapering caffeine while addressing root causes feels worse before it feels better, but is the path through.' });
+  }
+
+  if (wk.recoveryAfterWork === 'Constantly connected / checking') {
+    flags.push({ icon: '⚠', text: 'Constant work connectivity means your nervous system never gets a recovery signal. Even short, hard boundaries (phone in another room from 20:00) outperform longer but porous ones.' });
   }
 
   return { scores, insights, flags };
@@ -305,6 +566,8 @@ function generateInsights(data) {
 function generateRecommendations(scores, data) {
   const recs = [];
   const f = data.foundation || {};
+  const e = data.eatingHabits || {};
+  const r = data.dailyRhythm || {};
 
   if (scores.digestive?.pct > 30) {
     recs.push({
@@ -314,7 +577,7 @@ function generateRecommendations(scores, data) {
         'Bone broth or collagen peptides daily — provides amino acids for gut lining repair',
         'Saccharomyces boulardii probiotic 250–500mg daily — particularly effective for IBS-pattern symptoms',
         'Zinc carnosine 75mg with food — targets gastric and intestinal healing',
-        '4-week elimination of common triggers (gluten, dairy, refined sugar) with structured reintroduction',
+        '4-week elimination of common triggers (gluten, dairy, refined sugar) with structured reintroduction one at a time',
       ],
     });
   }
@@ -345,7 +608,7 @@ function generateRecommendations(scores, data) {
     });
   }
 
-  if (scores.endocrine?.pct > 25 || ['00:00–01:30', 'After 01:30'].includes(f.bedtime)) {
+  if (scores.endocrine?.pct > 25 || isLateBedtime(r.bedtime)) {
     recs.push({
       priority: 'Cortisol & sleep recovery',
       items: [
@@ -354,6 +617,7 @@ function generateRecommendations(scores, data) {
         'Morning sunlight exposure within 30 minutes of waking',
         'Ashwagandha (KSM-66) 300–600mg daily — clinically reduces cortisol 25–30%',
         'No screens after 22:00, no food after 20:00',
+        'If exercise is in evening, move it earlier in the day where possible',
       ],
     });
   }
@@ -378,6 +642,19 @@ function generateRecommendations(scores, data) {
         'Magnesium glycinate or malate for muscle relaxation',
         'Anti-inflammatory diet emphasis (omega-3s, polyphenols, low sugar)',
         'Consider physical therapy assessment for hypermobility-related instability',
+      ],
+    });
+  }
+
+  // NEW: Eating mechanics
+  if (e.eatingSpeed === 'Very fast — barely chew' || e.eatingSpeed === 'Fast — finish before others') {
+    recs.push({
+      priority: 'Eating mechanics',
+      items: [
+        'Put fork down between every bite for the first week',
+        'Aim for 20–30 chews per mouthful',
+        'Take 20 minutes minimum for any meal',
+        'Eat without screens — your brain needs to register the meal',
       ],
     });
   }
@@ -456,8 +733,8 @@ function IntroScreen({ onStart }) {
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
         {[
-          { label: 'Time', value: '15–20 min' },
-          { label: 'Sections', value: 'Eight' },
+          { label: 'Time', value: '25–30 min' },
+          { label: 'Sections', value: 'Fourteen' },
           { label: 'Privacy', value: 'Local only' },
         ].map(item => (
           <div key={item.label} style={{ borderTop: `1px solid ${COLORS.rule}`, paddingTop: '1rem' }}>
@@ -495,13 +772,7 @@ function IntroScreen({ onStart }) {
       <button
         onClick={onStart}
         className="group inline-flex items-center gap-3 px-8 py-4 transition-all duration-300 hover:gap-5"
-        style={{
-          background: COLORS.ink,
-          color: COLORS.bg,
-          fontFamily: 'Cormorant Garamond, Georgia, serif',
-          fontSize: '1.1rem',
-          letterSpacing: '0.05em',
-        }}
+        style={{ background: COLORS.ink, color: COLORS.bg, fontFamily: 'Cormorant Garamond, Georgia, serif', fontSize: '1.1rem', letterSpacing: '0.05em' }}
       >
         Begin Assessment
         <ChevronRight size={18} strokeWidth={1.5} />
@@ -539,19 +810,7 @@ function TextField({ label, value, onChange, multiline, type = 'text' }) {
           value={value || ''}
           onChange={e => onChange(e.target.value)}
           rows={3}
-          style={{
-            width: '100%',
-            padding: '0.75rem 0',
-            background: 'transparent',
-            border: 'none',
-            borderBottom: `1px solid ${COLORS.rule}`,
-            fontFamily: 'Cormorant Garamond, Georgia, serif',
-            fontSize: '1.05rem',
-            color: COLORS.ink,
-            outline: 'none',
-            resize: 'vertical',
-            transition: 'border-color 0.2s',
-          }}
+          style={{ width: '100%', padding: '0.75rem 0', background: 'transparent', border: 'none', borderBottom: `1px solid ${COLORS.rule}`, fontFamily: 'Cormorant Garamond, Georgia, serif', fontSize: '1.05rem', color: COLORS.ink, outline: 'none', resize: 'vertical', transition: 'border-color 0.2s' }}
           onFocus={e => e.target.style.borderBottomColor = COLORS.accent}
           onBlur={e => e.target.style.borderBottomColor = COLORS.rule}
         />
@@ -560,18 +819,7 @@ function TextField({ label, value, onChange, multiline, type = 'text' }) {
           type={type}
           value={value || ''}
           onChange={e => onChange(e.target.value)}
-          style={{
-            width: '100%',
-            padding: '0.75rem 0',
-            background: 'transparent',
-            border: 'none',
-            borderBottom: `1px solid ${COLORS.rule}`,
-            fontFamily: 'Cormorant Garamond, Georgia, serif',
-            fontSize: '1.05rem',
-            color: COLORS.ink,
-            outline: 'none',
-            transition: 'border-color 0.2s',
-          }}
+          style={{ width: '100%', padding: '0.75rem 0', background: 'transparent', border: 'none', borderBottom: `1px solid ${COLORS.rule}`, fontFamily: 'Cormorant Garamond, Georgia, serif', fontSize: '1.05rem', color: COLORS.ink, outline: 'none', transition: 'border-color 0.2s' }}
           onFocus={e => e.target.style.borderBottomColor = COLORS.accent}
           onBlur={e => e.target.style.borderBottomColor = COLORS.rule}
         />
@@ -593,16 +841,7 @@ function SelectField({ label, options, value, onChange }) {
             <button
               key={opt}
               onClick={() => onChange(opt)}
-              style={{
-                padding: '0.5rem 1rem',
-                background: selected ? COLORS.ink : 'transparent',
-                color: selected ? COLORS.bg : COLORS.ink,
-                border: `1px solid ${selected ? COLORS.ink : COLORS.rule}`,
-                fontFamily: 'Cormorant Garamond, Georgia, serif',
-                fontSize: '0.95rem',
-                cursor: 'pointer',
-                transition: 'all 0.2s',
-              }}
+              style={{ padding: '0.5rem 1rem', background: selected ? COLORS.ink : 'transparent', color: selected ? COLORS.bg : COLORS.ink, border: `1px solid ${selected ? COLORS.ink : COLORS.rule}`, fontFamily: 'Cormorant Garamond, Georgia, serif', fontSize: '0.95rem', cursor: 'pointer', transition: 'all 0.2s' }}
               onMouseEnter={e => { if (!selected) e.currentTarget.style.borderColor = COLORS.accent; }}
               onMouseLeave={e => { if (!selected) e.currentTarget.style.borderColor = COLORS.rule; }}
             >
@@ -632,21 +871,38 @@ function MultiSelectField({ label, options, value = [], onChange }) {
             <button
               key={opt}
               onClick={() => toggle(opt)}
-              style={{
-                padding: '0.5rem 1rem',
-                background: selected ? COLORS.ink : 'transparent',
-                color: selected ? COLORS.bg : COLORS.ink,
-                border: `1px solid ${selected ? COLORS.ink : COLORS.rule}`,
-                fontFamily: 'Cormorant Garamond, Georgia, serif',
-                fontSize: '0.95rem',
-                cursor: 'pointer',
-                transition: 'all 0.2s',
-              }}
+              style={{ padding: '0.5rem 1rem', background: selected ? COLORS.ink : 'transparent', color: selected ? COLORS.bg : COLORS.ink, border: `1px solid ${selected ? COLORS.ink : COLORS.rule}`, fontFamily: 'Cormorant Garamond, Georgia, serif', fontSize: '0.95rem', cursor: 'pointer', transition: 'all 0.2s' }}
             >
               {opt}
             </button>
           );
         })}
+      </div>
+    </div>
+  );
+}
+
+function YesNoField({ label, value, onChange }) {
+  return (
+    <div className="mb-6" style={{ paddingBottom: '1rem', borderBottom: `1px solid ${COLORS.rule}` }}>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <label style={{ fontFamily: 'Cormorant Garamond, Georgia, serif', fontSize: '1.05rem', color: COLORS.ink, lineHeight: 1.5, flex: 1 }}>
+          {label}
+        </label>
+        <div className="flex gap-2">
+          {['Yes', 'No'].map(opt => {
+            const selected = value === opt;
+            return (
+              <button
+                key={opt}
+                onClick={() => onChange(opt)}
+                style={{ padding: '0.4rem 1.25rem', background: selected ? COLORS.ink : 'transparent', color: selected ? COLORS.bg : COLORS.ink, border: `1px solid ${selected ? COLORS.ink : COLORS.rule}`, fontFamily: 'Cormorant Garamond, Georgia, serif', fontSize: '0.95rem', cursor: 'pointer', transition: 'all 0.2s', minWidth: '4rem' }}
+              >
+                {opt}
+              </button>
+            );
+          })}
+        </div>
       </div>
     </div>
   );
@@ -667,19 +923,7 @@ function ScaleQuestion({ question, value, onChange, index }) {
             <button
               key={i}
               onClick={() => onChange(i)}
-              style={{
-                flex: '1 1 auto',
-                minWidth: '5rem',
-                padding: '0.625rem 0.5rem',
-                background: selected ? COLORS.accent : 'transparent',
-                color: selected ? COLORS.paper : COLORS.inkLight,
-                border: `1px solid ${selected ? COLORS.accent : COLORS.rule}`,
-                fontFamily: 'Cormorant Garamond, Georgia, serif',
-                fontSize: '0.85rem',
-                letterSpacing: '0.05em',
-                cursor: 'pointer',
-                transition: 'all 0.2s',
-              }}
+              style={{ flex: '1 1 auto', minWidth: '5rem', padding: '0.625rem 0.5rem', background: selected ? COLORS.accent : 'transparent', color: selected ? COLORS.paper : COLORS.inkLight, border: `1px solid ${selected ? COLORS.accent : COLORS.rule}`, fontFamily: 'Cormorant Garamond, Georgia, serif', fontSize: '0.85rem', letterSpacing: '0.05em', cursor: 'pointer', transition: 'all 0.2s' }}
             >
               {label}
             </button>
@@ -697,15 +941,7 @@ function NavButtons({ onBack, onNext, nextLabel = 'Continue', canProceed = true 
         onClick={onBack}
         disabled={!onBack}
         className="inline-flex items-center gap-2 transition-opacity"
-        style={{
-          fontFamily: 'Cormorant Garamond, Georgia, serif',
-          fontSize: '1rem',
-          color: COLORS.inkLight,
-          opacity: onBack ? 1 : 0.3,
-          cursor: onBack ? 'pointer' : 'default',
-          background: 'none',
-          border: 'none',
-        }}
+        style={{ fontFamily: 'Cormorant Garamond, Georgia, serif', fontSize: '1rem', color: COLORS.inkLight, opacity: onBack ? 1 : 0.3, cursor: onBack ? 'pointer' : 'default', background: 'none', border: 'none' }}
       >
         <ChevronLeft size={16} strokeWidth={1.5} />
         Back
@@ -714,15 +950,7 @@ function NavButtons({ onBack, onNext, nextLabel = 'Continue', canProceed = true 
         onClick={onNext}
         disabled={!canProceed}
         className="inline-flex items-center gap-3 px-6 py-3 transition-all duration-200 hover:gap-4"
-        style={{
-          background: canProceed ? COLORS.ink : COLORS.rule,
-          color: COLORS.bg,
-          fontFamily: 'Cormorant Garamond, Georgia, serif',
-          fontSize: '1rem',
-          letterSpacing: '0.05em',
-          cursor: canProceed ? 'pointer' : 'not-allowed',
-          border: 'none',
-        }}
+        style={{ background: canProceed ? COLORS.ink : COLORS.rule, color: COLORS.bg, fontFamily: 'Cormorant Garamond, Georgia, serif', fontSize: '1rem', letterSpacing: '0.05em', cursor: canProceed ? 'pointer' : 'not-allowed', border: 'none' }}
       >
         {nextLabel}
         <ChevronRight size={16} strokeWidth={1.5} />
@@ -739,7 +967,7 @@ function PersonalScreen({ data, update, onNext, onBack }) {
   const d = data.personal || {};
   return (
     <div className="max-w-2xl mx-auto px-6 py-12">
-      <SectionHeader eyebrow="Section 01 of 10" title="About you" subtitle="Basic context to ground the assessment." />
+      <SectionHeader eyebrow="Section 01 of 14" title="About you" subtitle="Basic context to ground the assessment." />
       <TextField label="Name (optional)" value={d.name} onChange={v => update('personal.name', v)} />
       <TextField label="Age" type="number" value={d.age} onChange={v => update('personal.age', v)} />
       <SelectField label="Gender" options={['Male', 'Female', 'Other / Prefer not to say']} value={d.gender} onChange={v => update('personal.gender', v)} />
@@ -749,33 +977,30 @@ function PersonalScreen({ data, update, onNext, onBack }) {
   );
 }
 
-function FoundationScreen({ data, update, onNext, onBack }) {
-  const f = data.foundation || {};
-  const required = ['primaryConcern', 'childhoodHealth', 'childhoodAntibiotics', 'recentAntibiotics', 'sleepHours', 'bedtime', 'hydration', 'eatingSpeed', 'mealRegularity', 'bowelFrequency', 'emotionalBaseline'];
-  const canProceed = required.every(k => {
-    const q = FOUNDATION_QUESTIONS[k];
-    if (q.type === 'longtext') return f[k] && f[k].trim().length > 0;
-    return !!f[k];
+function GenericFormScreen({ sectionKey, sectionNumber, title, subtitle, questions, requiredKeys, data, update, onNext, onBack }) {
+  const sectionData = data[sectionKey] || {};
+  const canProceed = (requiredKeys || []).every(k => {
+    const q = questions[k];
+    const v = sectionData[k];
+    if (!q) return true;
+    if (q.type === 'longtext') return v && v.trim().length > 0;
+    if (q.type === 'multiselect') return Array.isArray(v) && v.length > 0;
+    return !!v;
   });
 
   return (
     <div className="max-w-2xl mx-auto px-6 py-12">
-      <SectionHeader eyebrow="Section 02 of 10" title="Foundation" subtitle="Context that helps interpret everything that follows. Take your time." />
-      {Object.entries(FOUNDATION_QUESTIONS).map(([key, q], idx) => {
+      <SectionHeader eyebrow={`Section ${String(sectionNumber).padStart(2, '0')} of 14`} title={title} subtitle={subtitle} />
+      {Object.entries(questions).map(([key, q], idx) => {
         const wrapper = (content) => (
           <div key={key} style={{ paddingTop: idx === 0 ? 0 : '1.5rem', paddingBottom: '0.5rem', borderTop: idx === 0 ? 'none' : `1px solid ${COLORS.rule}`, marginBottom: '1.5rem' }}>
             {content}
           </div>
         );
-        if (q.type === 'longtext') {
-          return wrapper(<TextField label={q.label} value={f[key]} multiline onChange={v => update(`foundation.${key}`, v)} />);
-        }
-        if (q.type === 'select') {
-          return wrapper(<SelectField label={q.label} options={q.options} value={f[key]} onChange={v => update(`foundation.${key}`, v)} />);
-        }
-        if (q.type === 'multiselect') {
-          return wrapper(<MultiSelectField label={q.label} options={q.options} value={f[key]} onChange={v => update(`foundation.${key}`, v)} />);
-        }
+        const onChange = v => update(`${sectionKey}.${key}`, v);
+        if (q.type === 'longtext') return wrapper(<TextField label={q.label} value={sectionData[key]} multiline onChange={onChange} />);
+        if (q.type === 'select') return wrapper(<SelectField label={q.label} options={q.options} value={sectionData[key]} onChange={onChange} />);
+        if (q.type === 'multiselect') return wrapper(<MultiSelectField label={q.label} options={q.options} value={sectionData[key]} onChange={onChange} />);
         return null;
       })}
       <NavButtons onBack={onBack} onNext={onNext} canProceed={canProceed} />
@@ -787,7 +1012,7 @@ function VitalsScreen({ data, update, onNext, onBack }) {
   const v = data.vitals || {};
   return (
     <div className="max-w-2xl mx-auto px-6 py-12">
-      <SectionHeader eyebrow="Section 03 of 10" title="Vital statistics" subtitle="Approximate numbers are fine. Skip what you don't know." />
+      <SectionHeader eyebrow="Section 03 of 14" title="Vital statistics" subtitle="Approximate numbers are fine. Skip what you don't know." />
       <TextField label="Blood pressure (e.g., 120/80)" value={v.bp} onChange={x => update('vitals.bp', x)} />
       <TextField label="Resting heart rate (bpm)" type="number" value={v.hr} onChange={x => update('vitals.hr', x)} />
       <TextField label="Weight (kg)" type="number" value={v.weight} onChange={x => update('vitals.weight', x)} />
@@ -803,11 +1028,36 @@ function MedicalScreen({ data, update, onNext, onBack }) {
   const m = data.medical || {};
   return (
     <div className="max-w-2xl mx-auto px-6 py-12">
-      <SectionHeader eyebrow="Section 04 of 10" title="Medical history" subtitle="Diagnosed conditions, medications, allergies." />
-      <TextField label="Diagnosed conditions and surgeries" value={m.conditions} multiline onChange={v => update('medical.conditions', v)} />
-      <TextField label="Current medications and supplements (with doses if known)" value={m.meds} multiline onChange={v => update('medical.meds', v)} />
-      <TextField label="Known allergies (foods, medications, environmental)" value={m.allergies} multiline onChange={v => update('medical.allergies', v)} />
+      <SectionHeader eyebrow="Section 04 of 14" title="Medical history" subtitle="Diagnosed conditions, medications, allergies. Be detailed — dosages, durations, what you've tried." />
+      <TextField label="Diagnosed conditions and surgeries (with dates if known)" value={m.conditions} multiline onChange={v => update('medical.conditions', v)} />
+      <TextField label="Current medications and supplements (include doses, frequency, how long you've been taking them)" value={m.meds} multiline onChange={v => update('medical.meds', v)} />
+      <TextField label="Known allergies (foods, medications, environmental, severity)" value={m.allergies} multiline onChange={v => update('medical.allergies', v)} />
       <NavButtons onBack={onBack} onNext={onNext} />
+    </div>
+  );
+}
+
+function EnergyScreen({ data, update, onNext, onBack }) {
+  const en = data.energy || {};
+  const yesnoKeys = ['needLongSleep', 'lowEnergyOverall', 'hardToGetUp', 'daytimeSleepy', 'hangerDizzy', 'caffeineDependent', 'concentrationIssues', 'dizzyOnStanding', 'unexplainedExhaustion'];
+  const canProceed = yesnoKeys.every(k => en[k]) && !!en.energyDipTime;
+
+  return (
+    <div className="max-w-2xl mx-auto px-6 py-12">
+      <SectionHeader eyebrow="Section 09 of 14" title="Energy levels" subtitle="A quick yes/no scan of how energy moves through your day." />
+      {Object.entries(ENERGY_QUESTIONS).map(([key, q]) => {
+        const onChange = v => update(`energy.${key}`, v);
+        if (q.type === 'yesno') return <YesNoField key={key} label={q.label} value={en[key]} onChange={onChange} />;
+        if (q.type === 'select') {
+          return (
+            <div key={key} style={{ paddingTop: '1rem' }}>
+              <SelectField label={q.label} options={q.options} value={en[key]} onChange={onChange} />
+            </div>
+          );
+        }
+        return null;
+      })}
+      <NavButtons onBack={onBack} onNext={onNext} canProceed={canProceed} />
     </div>
   );
 }
@@ -819,11 +1069,7 @@ function ScanSectionScreen({ sectionKey, sectionNumber, data, update, onNext, on
 
   return (
     <div className="max-w-2xl mx-auto px-6 py-12">
-      <SectionHeader
-        eyebrow={`Section ${String(sectionNumber).padStart(2, '0')} of 10`}
-        title={section.title}
-        subtitle={section.description}
-      />
+      <SectionHeader eyebrow={`Section ${String(sectionNumber).padStart(2, '0')} of 14`} title={section.title} subtitle={section.description} />
       <p style={{ fontFamily: 'Cormorant Garamond, Georgia, serif', fontSize: '0.9rem', color: COLORS.inkLight, fontStyle: 'italic', marginBottom: '2rem', paddingBottom: '1rem', borderBottom: `1px solid ${COLORS.rule}` }}>
         How often do these apply to you?
       </p>
@@ -840,7 +1086,7 @@ function ScanSectionScreen({ sectionKey, sectionNumber, data, update, onNext, on
           }}
         />
       ))}
-      <NavButtons onBack={onBack} onNext={onNext} canProceed={allAnswered} nextLabel={sectionNumber === 10 ? 'Generate Report' : 'Continue'} />
+      <NavButtons onBack={onBack} onNext={onNext} canProceed={allAnswered} nextLabel={sectionNumber === 14 ? 'Generate Report' : 'Continue'} />
     </div>
   );
 }
@@ -874,13 +1120,12 @@ function ReportScreen({ data, onRestart }) {
   const downloadReport = async () => {
     setDownloading(true);
     try {
-      // Dynamic import keeps bundle small until needed
       const docx = await import('docx');
       const blob = await buildDocx(docx, data, analysis, recommendations);
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `body-compass-report-${new Date().toISOString().slice(0,10)}.docx`;
+      a.download = `body-compass-report-${new Date().toISOString().slice(0, 10)}.docx`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -902,14 +1147,7 @@ function ReportScreen({ data, onRestart }) {
           Score summary
         </h3>
         {Object.entries(analysis.scores).map(([key, s]) => (
-          <ScoreBar
-            key={key}
-            label={SCAN_SECTIONS[key].title}
-            score={s.score}
-            max={s.max}
-            level={s.level}
-            color={s.color}
-          />
+          <ScoreBar key={key} label={SCAN_SECTIONS[key].title} score={s.score} max={s.max} level={s.level} color={s.color} />
         ))}
       </div>
 
@@ -998,16 +1236,7 @@ function ReportScreen({ data, onRestart }) {
           onClick={downloadReport}
           disabled={downloading}
           className="inline-flex items-center justify-center gap-3 px-8 py-4 transition-all"
-          style={{
-            background: COLORS.ink,
-            color: COLORS.bg,
-            fontFamily: 'Cormorant Garamond, Georgia, serif',
-            fontSize: '1.05rem',
-            letterSpacing: '0.05em',
-            cursor: downloading ? 'wait' : 'pointer',
-            border: 'none',
-            opacity: downloading ? 0.7 : 1,
-          }}
+          style={{ background: COLORS.ink, color: COLORS.bg, fontFamily: 'Cormorant Garamond, Georgia, serif', fontSize: '1.05rem', letterSpacing: '0.05em', cursor: downloading ? 'wait' : 'pointer', border: 'none', opacity: downloading ? 0.7 : 1 }}
         >
           {downloading ? <Loader2 size={18} className="animate-spin" strokeWidth={1.5} /> : <Download size={18} strokeWidth={1.5} />}
           {downloading ? 'Building document' : 'Download full report'}
@@ -1015,14 +1244,7 @@ function ReportScreen({ data, onRestart }) {
         <button
           onClick={onRestart}
           className="inline-flex items-center justify-center gap-2 px-6 py-4 transition-all"
-          style={{
-            background: 'transparent',
-            color: COLORS.ink,
-            fontFamily: 'Cormorant Garamond, Georgia, serif',
-            fontSize: '1.05rem',
-            border: `1px solid ${COLORS.rule}`,
-            cursor: 'pointer',
-          }}
+          style={{ background: 'transparent', color: COLORS.ink, fontFamily: 'Cormorant Garamond, Georgia, serif', fontSize: '1.05rem', border: `1px solid ${COLORS.rule}`, cursor: 'pointer' }}
         >
           Start over
         </button>
@@ -1046,8 +1268,7 @@ async function buildDocx(docx, data, analysis, recommendations) {
   const altFill = { fill: 'F4F1EA', type: ShadingType.CLEAR };
 
   const heading = (text, level = HeadingLevel.HEADING_1) => new Paragraph({
-    heading: level,
-    spacing: { before: 320, after: 180 },
+    heading: level, spacing: { before: 320, after: 180 },
     children: [new TextRun({ text, font: 'Georgia' })],
   });
 
@@ -1058,7 +1279,7 @@ async function buildDocx(docx, data, analysis, recommendations) {
 
   const cell = (text, width, fill, bold = false, color) => new TableCell({
     borders, width: { size: width, type: WidthType.DXA }, shading: fill || { fill: 'FFFFFF', type: ShadingType.CLEAR }, margins,
-    children: [new Paragraph({ children: [new TextRun({ text: text || '', bold, font: 'Georgia', size: 20, color })] })],
+    children: [new Paragraph({ children: [new TextRun({ text: text || '—', bold, font: 'Georgia', size: 20, color })] })],
   });
 
   const headerCell = (text, width) => new TableCell({
@@ -1066,26 +1287,37 @@ async function buildDocx(docx, data, analysis, recommendations) {
     children: [new Paragraph({ children: [new TextRun({ text, bold: true, color: 'F4F1EA', font: 'Georgia', size: 20 })] })],
   });
 
+  // Helper for rendering a Q/A section with detailed responses
+  const renderQA = (sectionTitle, questions, sectionData) => {
+    const items = [];
+    items.push(heading(sectionTitle, HeadingLevel.HEADING_2));
+    Object.entries(questions).forEach(([key, q]) => {
+      const val = sectionData[key];
+      if (!val) return;
+      const display = Array.isArray(val) ? val.join(', ') : val;
+      items.push(para(q.label, { bold: true }));
+      items.push(para(display, { spacing: { after: 200 } }));
+    });
+    return items;
+  };
+
   const children = [];
 
   // Title
   children.push(new Paragraph({
-    alignment: AlignmentType.CENTER,
-    spacing: { after: 100 },
+    alignment: AlignmentType.CENTER, spacing: { after: 100 },
     children: [new TextRun({ text: 'BODY COMPASS', bold: true, font: 'Georgia', size: 36, color: '2A2824' })],
   }));
   children.push(new Paragraph({
-    alignment: AlignmentType.CENTER,
-    spacing: { after: 80 },
+    alignment: AlignmentType.CENTER, spacing: { after: 80 },
     children: [new TextRun({ text: 'Self-Reflection Health Report', italics: true, font: 'Georgia', size: 22, color: '8B6F47' })],
   }));
   children.push(new Paragraph({
-    alignment: AlignmentType.CENTER,
-    spacing: { after: 360 },
+    alignment: AlignmentType.CENTER, spacing: { after: 360 },
     children: [new TextRun({ text: new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }), font: 'Georgia', size: 18, color: '5C5852' })],
   }));
 
-  // Personal
+  // Profile
   if (data.personal?.name || data.personal?.age) {
     children.push(heading('Profile'));
     const rows = [];
@@ -1094,12 +1326,8 @@ async function buildDocx(docx, data, analysis, recommendations) {
     if (data.personal?.gender) rows.push(['Gender', data.personal.gender]);
     if (data.personal?.profession) rows.push(['Profession', data.personal.profession]);
     children.push(new Table({
-      width: { size: 9360, type: WidthType.DXA },
-      columnWidths: [3000, 6360],
-      rows: rows.map((r, i) => new TableRow({ children: [
-        cell(r[0], 3000, i % 2 === 0 ? altFill : null, true),
-        cell(r[1], 6360, i % 2 === 0 ? altFill : null),
-      ]})),
+      width: { size: 9360, type: WidthType.DXA }, columnWidths: [3000, 6360],
+      rows: rows.map((r, i) => new TableRow({ children: [cell(r[0], 3000, i % 2 === 0 ? altFill : null, true), cell(r[1], 6360, i % 2 === 0 ? altFill : null)] })),
     }));
     children.push(para(''));
   }
@@ -1124,36 +1352,54 @@ async function buildDocx(docx, data, analysis, recommendations) {
       rows.push(['Waist-to-hip ratio', whr]);
     }
     children.push(new Table({
-      width: { size: 9360, type: WidthType.DXA },
-      columnWidths: [3000, 6360],
-      rows: rows.map((r, i) => new TableRow({ children: [
-        cell(r[0], 3000, i % 2 === 0 ? altFill : null, true),
-        cell(r[1], 6360, i % 2 === 0 ? altFill : null),
-      ]})),
+      width: { size: 9360, type: WidthType.DXA }, columnWidths: [3000, 6360],
+      rows: rows.map((r, i) => new TableRow({ children: [cell(r[0], 3000, i % 2 === 0 ? altFill : null, true), cell(r[1], 6360, i % 2 === 0 ? altFill : null)] })),
     }));
     children.push(para(''));
   }
 
-  // Foundation context
-  const f = data.foundation || {};
-  if (Object.keys(f).length > 0) {
-    children.push(heading('Context & lifestyle'));
-    Object.entries(FOUNDATION_QUESTIONS).forEach(([key, q]) => {
-      const val = f[key];
-      if (!val) return;
-      const display = Array.isArray(val) ? val.join(', ') : val;
-      children.push(para(q.label, { bold: true }));
-      children.push(para(display, { spacing: { after: 200 } }));
-    });
+  // Foundation
+  if (Object.keys(data.foundation || {}).length > 0) {
+    children.push(...renderQA('Context & background', FOUNDATION_QUESTIONS, data.foundation || {}));
   }
 
   // Medical
   const m = data.medical || {};
   if (m.conditions || m.meds || m.allergies) {
     children.push(heading('Medical history'));
-    if (m.conditions) { children.push(para('Diagnosed conditions and surgeries', { bold: true })); children.push(para(m.conditions)); }
-    if (m.meds) { children.push(para('Medications and supplements', { bold: true })); children.push(para(m.meds)); }
-    if (m.allergies) { children.push(para('Known allergies', { bold: true })); children.push(para(m.allergies)); }
+    if (m.conditions) { children.push(para('Diagnosed conditions and surgeries', { bold: true })); children.push(para(m.conditions, { spacing: { after: 200 } })); }
+    if (m.meds) { children.push(para('Medications and supplements', { bold: true })); children.push(para(m.meds, { spacing: { after: 200 } })); }
+    if (m.allergies) { children.push(para('Known allergies', { bold: true })); children.push(para(m.allergies, { spacing: { after: 200 } })); }
+  }
+
+  // Eating habits
+  if (Object.keys(data.eatingHabits || {}).length > 0) {
+    children.push(...renderQA('Eating habits', EATING_HABITS_QUESTIONS, data.eatingHabits || {}));
+  }
+
+  // Food diary
+  if (Object.keys(data.foodDiary || {}).length > 0) {
+    children.push(...renderQA('Food diary', FOOD_DIARY_QUESTIONS, data.foodDiary || {}));
+  }
+
+  // Daily rhythm
+  if (Object.keys(data.dailyRhythm || {}).length > 0) {
+    children.push(...renderQA('Daily rhythm', DAILY_RHYTHM_QUESTIONS, data.dailyRhythm || {}));
+  }
+
+  // Weekend
+  if (Object.keys(data.weekend || {}).length > 0) {
+    children.push(...renderQA('Weekend variation', WEEKEND_QUESTIONS, data.weekend || {}));
+  }
+
+  // Energy
+  if (Object.keys(data.energy || {}).length > 0) {
+    children.push(...renderQA('Energy levels', ENERGY_QUESTIONS, data.energy || {}));
+  }
+
+  // Work
+  if (Object.keys(data.work || {}).length > 0) {
+    children.push(...renderQA('Work & stress', WORK_QUESTIONS, data.work || {}));
   }
 
   children.push(new Paragraph({ children: [new PageBreak()] }));
@@ -1161,12 +1407,7 @@ async function buildDocx(docx, data, analysis, recommendations) {
   // Score summary
   children.push(heading('Score summary'));
   const summaryRows = [
-    new TableRow({ children: [
-      headerCell('System', 4000),
-      headerCell('Score', 1500),
-      headerCell('Max', 1200),
-      headerCell('Level', 2660),
-    ]}),
+    new TableRow({ children: [headerCell('System', 4000), headerCell('Score', 1500), headerCell('Max', 1200), headerCell('Level', 2660)] }),
   ];
   Object.entries(analysis.scores).forEach(([key, s], i) => {
     const fill = i % 2 === 0 ? altFill : null;
@@ -1177,34 +1418,21 @@ async function buildDocx(docx, data, analysis, recommendations) {
       cell(s.level, 2660, fill, true, s.color.replace('#', '')),
     ]}));
   });
-  children.push(new Table({
-    width: { size: 9360, type: WidthType.DXA },
-    columnWidths: [4000, 1500, 1200, 2660],
-    rows: summaryRows,
-  }));
+  children.push(new Table({ width: { size: 9360, type: WidthType.DXA }, columnWidths: [4000, 1500, 1200, 2660], rows: summaryRows }));
   children.push(para(''));
 
-  // Detailed answers per section
-  children.push(heading('Detailed responses'));
+  // Detailed scan responses
+  children.push(heading('Detailed scan responses'));
   Object.entries(SCAN_SECTIONS).forEach(([key, section]) => {
     const answers = data[key] || [];
     children.push(heading(section.title, HeadingLevel.HEADING_2));
-    const rows = [
-      new TableRow({ children: [headerCell('Question', 7400), headerCell('Score', 1960)] }),
-    ];
+    const rows = [new TableRow({ children: [headerCell('Question', 7400), headerCell('Score', 1960)] })];
     section.questions.forEach((q, i) => {
       const fill = i % 2 === 0 ? altFill : null;
       const labels = ['Never', 'Rarely', 'Sometimes', 'Often', 'Always'];
-      rows.push(new TableRow({ children: [
-        cell(q, 7400, fill),
-        cell(`${answers[i] ?? '—'} (${labels[answers[i]] ?? '—'})`, 1960, fill),
-      ]}));
+      rows.push(new TableRow({ children: [cell(q, 7400, fill), cell(`${answers[i] ?? '—'} (${labels[answers[i]] ?? '—'})`, 1960, fill)] }));
     });
-    children.push(new Table({
-      width: { size: 9360, type: WidthType.DXA },
-      columnWidths: [7400, 1960],
-      rows,
-    }));
+    children.push(new Table({ width: { size: 9360, type: WidthType.DXA }, columnWidths: [7400, 1960], rows }));
     children.push(para(''));
   });
 
@@ -1247,14 +1475,8 @@ async function buildDocx(docx, data, analysis, recommendations) {
     const fill = i % 2 === 0 ? altFill : null;
     labRows.push(new TableRow({ children: [cell(t.name, 3500, fill, true), cell(t.why, 5860, fill)] }));
   });
-  children.push(new Table({
-    width: { size: 9360, type: WidthType.DXA },
-    columnWidths: [3500, 5860],
-    rows: labRows,
-  }));
+  children.push(new Table({ width: { size: 9360, type: WidthType.DXA }, columnWidths: [3500, 5860], rows: labRows }));
 
-  // Disclaimer
-  children.push(para(''));
   children.push(para(''));
   children.push(para('IMPORTANT', { bold: true, color: 'B45353' }));
   children.push(para('This report is a self-reflection document, not medical advice. Score patterns are not diagnoses. Discuss findings with a qualified healthcare provider before starting supplements or making significant changes, especially if you take medications. Some supplements interact with common drugs — for example, calcium, iron, and magnesium should be taken several hours apart from thyroid medications.', { italics: true, color: '5C5852' }));
@@ -1284,21 +1506,21 @@ async function buildDocx(docx, data, analysis, recommendations) {
 // MAIN APP
 // ==========================================================================
 
+const initialState = () => ({
+  personal: {}, foundation: {}, vitals: {}, medical: {},
+  eatingHabits: {}, foodDiary: {}, dailyRhythm: {}, weekend: {}, energy: {}, work: {},
+  digestive: Array(8).fill(null),
+  detox: Array(8).fill(null),
+  pancreas: Array(8).fill(null),
+  endocrine: Array(6).fill(null),
+  nervous: Array(8).fill(null),
+  musculoskeletal: Array(10).fill(null),
+  autoimmune: Array(8).fill(null),
+});
+
 export default function App() {
   const [step, setStep] = useState(0);
-  const [data, setData] = useState({
-    personal: {},
-    foundation: {},
-    vitals: {},
-    medical: {},
-    digestive: Array(8).fill(null),
-    detox: Array(8).fill(null),
-    pancreas: Array(8).fill(null),
-    endocrine: Array(6).fill(null),
-    nervous: Array(8).fill(null),
-    musculoskeletal: Array(10).fill(null),
-    autoimmune: Array(8).fill(null),
-  });
+  const [data, setData] = useState(initialState);
 
   const update = (path, value) => {
     setData(prev => {
@@ -1314,38 +1536,88 @@ export default function App() {
     });
   };
 
-  // Step ordering: 0=intro, 1=personal, 2=foundation, 3=vitals, 4=medical, 5-11=scan sections, 12=report
-  const totalSteps = 12;
-  const progress = step === 0 ? 0 : step === totalSteps ? 100 : (step / totalSteps) * 100;
+  // Step ordering:
+  // 0=intro, 1=personal, 2=foundation, 3=vitals, 4=medical,
+  // 5=eatingHabits, 6=foodDiary, 7=dailyRhythm, 8=weekend, 9=energy, 10=work,
+  // 11..17=scan sections (digestive, detox, pancreas, endocrine, nervous, musculoskeletal, autoimmune),
+  // 18=report
+  const totalSteps = 18;
+  const progress = step === 0 ? 0 : step >= totalSteps ? 100 : (step / totalSteps) * 100;
 
   const next = () => { setStep(s => s + 1); window.scrollTo({ top: 0, behavior: 'smooth' }); };
   const back = () => { setStep(s => Math.max(0, s - 1)); window.scrollTo({ top: 0, behavior: 'smooth' }); };
-  const restart = () => { setStep(0); setData({
-    personal: {}, foundation: {}, vitals: {}, medical: {},
-    digestive: Array(8).fill(null), detox: Array(8).fill(null),
-    pancreas: Array(8).fill(null), endocrine: Array(6).fill(null),
-    nervous: Array(8).fill(null), musculoskeletal: Array(10).fill(null),
-    autoimmune: Array(8).fill(null),
-  }); window.scrollTo({ top: 0, behavior: 'smooth' }); };
+  const restart = () => { setStep(0); setData(initialState()); window.scrollTo({ top: 0, behavior: 'smooth' }); };
 
   const scanOrder = ['digestive', 'detox', 'pancreas', 'endocrine', 'nervous', 'musculoskeletal', 'autoimmune'];
 
   const renderStep = () => {
     if (step === 0) return <IntroScreen onStart={next} />;
     if (step === 1) return <PersonalScreen data={data} update={update} onNext={next} onBack={back} />;
-    if (step === 2) return <FoundationScreen data={data} update={update} onNext={next} onBack={back} />;
+    if (step === 2) return (
+      <GenericFormScreen
+        sectionKey="foundation" sectionNumber={2} title="Foundation"
+        subtitle="Context that helps interpret everything that follows. Take your time — be detailed."
+        questions={FOUNDATION_QUESTIONS}
+        requiredKeys={['primaryConcern', 'childhoodHealth', 'childhoodAntibiotics', 'recentAntibiotics', 'emotionalBaseline']}
+        data={data} update={update} onNext={next} onBack={back}
+      />
+    );
     if (step === 3) return <VitalsScreen data={data} update={update} onNext={next} onBack={back} />;
     if (step === 4) return <MedicalScreen data={data} update={update} onNext={next} onBack={back} />;
-    if (step >= 5 && step <= 11) {
-      const sectionKey = scanOrder[step - 5];
+    if (step === 5) return (
+      <GenericFormScreen
+        sectionKey="eatingHabits" sectionNumber={5} title="Eating habits"
+        subtitle="Your relationship with food, the foods you reach for, and patterns that may be invisible to you."
+        questions={EATING_HABITS_QUESTIONS}
+        requiredKeys={['hydration', 'eatingSpeed', 'mealRegularity', 'bowelFrequency']}
+        data={data} update={update} onNext={next} onBack={back}
+      />
+    );
+    if (step === 6) return (
+      <GenericFormScreen
+        sectionKey="foodDiary" sectionNumber={6} title="Food diary"
+        subtitle="Walk through a typical day. Times matter — note when, not just what."
+        questions={FOOD_DIARY_QUESTIONS}
+        requiredKeys={['breakfast', 'lunch', 'dinner']}
+        data={data} update={update} onNext={next} onBack={back}
+      />
+    );
+    if (step === 7) return (
+      <GenericFormScreen
+        sectionKey="dailyRhythm" sectionNumber={7} title="Daily rhythm"
+        subtitle="Sleep, work, exercise, evenings. The structure of your weekday."
+        questions={DAILY_RHYTHM_QUESTIONS}
+        requiredKeys={['wakeTime', 'bedtime', 'sleepHours', 'sleepQuality', 'exerciseFrequency', 'screensBeforeBed']}
+        data={data} update={update} onNext={next} onBack={back}
+      />
+    );
+    if (step === 8) return (
+      <GenericFormScreen
+        sectionKey="weekend" sectionNumber={8} title="Weekend variation"
+        subtitle="How weekends differ from weekdays often reveals where stress is coming from."
+        questions={WEEKEND_QUESTIONS}
+        requiredKeys={['weekendWakeTime', 'weekendBedtime', 'weekendMood']}
+        data={data} update={update} onNext={next} onBack={back}
+      />
+    );
+    if (step === 9) return <EnergyScreen data={data} update={update} onNext={next} onBack={back} />;
+    if (step === 10) return (
+      <GenericFormScreen
+        sectionKey="work" sectionNumber={10} title="Work & stress"
+        subtitle="Work shapes the rest. Be honest about how it lands on you."
+        questions={WORK_QUESTIONS}
+        requiredKeys={['workEnvironment', 'jobSatisfaction', 'recoveryAfterWork']}
+        data={data} update={update} onNext={next} onBack={back}
+      />
+    );
+    if (step >= 11 && step <= 17) {
+      const sectionKey = scanOrder[step - 11];
       return (
         <ScanSectionScreen
           sectionKey={sectionKey}
-          sectionNumber={step - 1}
-          data={data}
-          update={(k, v) => update(k, v)}
-          onNext={next}
-          onBack={back}
+          sectionNumber={step - 3}
+          data={data} update={(k, v) => update(k, v)}
+          onNext={next} onBack={back}
         />
       );
     }
@@ -1354,7 +1626,6 @@ export default function App() {
 
   return (
     <div style={{ minHeight: '100vh', background: COLORS.bg, color: COLORS.ink, fontFamily: 'Cormorant Garamond, Georgia, serif' }}>
-      {/* Font loading */}
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&display=swap');
         body { background: ${COLORS.bg}; }
@@ -1363,9 +1634,7 @@ export default function App() {
         ::selection { background: ${COLORS.highlight}; color: ${COLORS.ink}; }
       `}</style>
       <Header progress={progress} />
-      <main>
-        {renderStep()}
-      </main>
+      <main>{renderStep()}</main>
       <footer style={{ borderTop: `1px solid ${COLORS.rule}`, padding: '2rem 1.5rem', marginTop: '4rem', textAlign: 'center' }}>
         <p style={{ fontSize: '0.85rem', color: COLORS.inkLight, fontStyle: 'italic' }}>
           Body Compass · A self-reflection tool · Not medical advice
