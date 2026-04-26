@@ -471,6 +471,18 @@ function IntroScreen({ onStart }) {
         ))}
       </div>
 
+      <div style={{ background: COLORS.highlight, border: `1px solid ${COLORS.rule}`, padding: '1.5rem', marginBottom: '1rem' }}>
+        <div className="flex gap-3">
+          <CheckCircle2 size={18} style={{ color: COLORS.accentDark, flexShrink: 0, marginTop: '2px' }} strokeWidth={1.5} />
+          <div style={{ fontSize: '0.95rem', lineHeight: 1.6, color: COLORS.ink }}>
+            <strong style={{ color: COLORS.ink }}>For the most useful report, be detailed.</strong>
+            <p style={{ marginTop: '0.5rem', color: COLORS.inkLight }}>
+              The quality of your insights depends on the depth of context you provide. When the assessment asks about your current symptoms, medications and supplements, past illnesses, surgeries, or chronic issues — write thoroughly rather than briefly. Mention dosages, durations, what changed and when, what you've tried before. Specifics turn generic patterns into personalized findings.
+            </p>
+          </div>
+        </div>
+      </div>
+
       <div style={{ background: COLORS.paper, border: `1px solid ${COLORS.rule}`, padding: '1.5rem', marginBottom: '3rem' }}>
         <div className="flex gap-3">
           <AlertCircle size={18} style={{ color: COLORS.accent, flexShrink: 0, marginTop: '2px' }} strokeWidth={1.5} />
