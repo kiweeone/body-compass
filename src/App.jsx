@@ -760,6 +760,33 @@ function IntroScreen({ onStart }) {
         </div>
       </div>
 
+      <div style={{ background: COLORS.paper, border: `1px solid ${COLORS.rule}`, padding: '1.5rem', marginBottom: '1rem' }}>
+        <div className="flex gap-3">
+          <Compass size={18} style={{ color: COLORS.accent, flexShrink: 0, marginTop: '2px' }} strokeWidth={1.5} />
+          <div style={{ fontSize: '0.9rem', lineHeight: 1.6, color: COLORS.inkLight }}>
+            <strong style={{ color: COLORS.ink }}>Your data stays on your device.</strong>
+            <ul style={{ marginTop: '0.5rem', paddingLeft: '1.25rem', listStyle: 'none' }}>
+              <li style={{ marginBottom: '0.4rem', position: 'relative', paddingLeft: '1rem' }}>
+                <span style={{ position: 'absolute', left: 0, color: COLORS.accent }}>—</span>
+                Your answers never leave the browser. No database, no logs, no server-side processing.
+              </li>
+              <li style={{ marginBottom: '0.4rem', position: 'relative', paddingLeft: '1rem' }}>
+                <span style={{ position: 'absolute', left: 0, color: COLORS.accent }}>—</span>
+                The connection is encrypted with HTTPS so the code can't be intercepted or modified as it loads.
+              </li>
+              <li style={{ marginBottom: '0.4rem', position: 'relative', paddingLeft: '1rem' }}>
+                <span style={{ position: 'absolute', left: 0, color: COLORS.accent }}>—</span>
+                No cookies, no tracking, no analytics.
+              </li>
+              <li style={{ position: 'relative', paddingLeft: '1rem' }}>
+                <span style={{ position: 'absolute', left: 0, color: COLORS.accent }}>—</span>
+                Refresh or close the tab and everything is gone. The report you download is yours alone.
+              </li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
       <div style={{ background: COLORS.paper, border: `1px solid ${COLORS.rule}`, padding: '1.5rem', marginBottom: '3rem' }}>
         <div className="flex gap-3">
           <AlertCircle size={18} style={{ color: COLORS.accent, flexShrink: 0, marginTop: '2px' }} strokeWidth={1.5} />
