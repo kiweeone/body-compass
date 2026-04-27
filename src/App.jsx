@@ -48,6 +48,20 @@ const FOUNDATION_QUESTIONS = {
   },
 };
 
+// MEDICAL HISTORY now includes weight history (NEW)
+const MEDICAL_QUESTIONS = {
+  conditions: { type: 'longtext', label: "Diagnosed conditions and surgeries (with dates if known)" },
+  meds: { type: 'longtext', label: "Current medications and supplements (include doses, frequency, how long you've been taking them)" },
+  allergies: { type: 'longtext', label: "Known allergies (foods, medications, environmental, severity)" },
+  weightHistory: { type: 'longtext', label: "Weight history — has your weight been stable, or have you experienced significant changes? Describe any major fluctuations, when they happened, and what was going on in your life at the time." },
+  weightTrend: {
+    type: 'select',
+    label: "Which best describes your recent weight trend?",
+    options: ['Stable for years', 'Slowly increasing', 'Recent rapid increase', 'Slowly decreasing', 'Recent rapid decrease', 'Yo-yo / fluctuating'],
+  },
+};
+
+// EATING HABITS — added cookware, fillings, dental hygiene questions (NEW)
 const EATING_HABITS_QUESTIONS = {
   favoriteFoods: { type: 'longtext', label: "What are your favorite foods? Be specific — list the dishes, brands, or cuisines you reach for." },
   cravedFoods: { type: 'longtext', label: "What foods do you crave? When and why do you think these cravings happen?" },
@@ -95,6 +109,32 @@ const EATING_HABITS_QUESTIONS = {
     label: "Artificial sweeteners (diet drinks, sugar-free gum, packaged 'sugar-free' products):",
     options: ['Never use', 'Rarely', 'Sometimes', 'Daily'],
   },
+  // NEW questions below
+  cookwareTypes: {
+    type: 'multiselect',
+    label: "Which materials do you regularly cook with or store food in? (select all that apply)",
+    options: ['Stainless steel', 'Cast iron', 'Aluminum / aluminium foil', 'Non-stick (Teflon)', 'Ceramic / enamel', 'Plastic containers (heated/microwaved)', 'Plastic containers (cold storage only)', 'Glass'],
+  },
+  plasticHeating: {
+    type: 'select',
+    label: "Do you reheat or microwave food in plastic containers?",
+    options: ['Never', 'Rarely', 'Sometimes', 'Often', 'Daily'],
+  },
+  amalgamFillings: {
+    type: 'select',
+    label: "Do you have amalgam (silver/mercury) dental fillings?",
+    options: ['No, never had any', 'No, all removed', 'Yes, a few (1–3)', 'Yes, several (4+)', 'Not sure'],
+  },
+  dentalHygiene: {
+    type: 'select',
+    label: "How often do you floss?",
+    options: ['Daily', 'Several times per week', 'Weekly', 'Rarely', 'Never'],
+  },
+  oralHealth: {
+    type: 'select',
+    label: "How would you describe your oral health overall?",
+    options: ['Excellent — no issues', 'Good with regular checkups', 'Some concerns (gum sensitivity, occasional bleeding)', 'Active issues (gum disease, frequent cavities)', "Haven't seen a dentist in years"],
+  },
   eatingSpeed: {
     type: 'select',
     label: "How fast do you typically eat?",
@@ -112,13 +152,21 @@ const EATING_HABITS_QUESTIONS = {
   },
 };
 
-const FOOD_DIARY_QUESTIONS = {
-  breakfast: { type: 'longtext', label: "Describe a typical breakfast — what you eat, where you get it, and the time you eat it. If you skip breakfast, write that." },
-  lunch: { type: 'longtext', label: "Describe a typical lunch — what, where, and when." },
-  dinner: { type: 'longtext', label: "Describe a typical dinner — what, where, and when." },
-  snacks: { type: 'longtext', label: "Snacks throughout the day — what do you reach for, and roughly when?" },
-  drinks: { type: 'longtext', label: "Beverages across the day — water, tea, coffee, juice, soda, alcohol. Approximate quantities." },
-  weekendDifference: { type: 'longtext', label: "How does weekend eating differ from weekdays, if at all? Late brunches, restaurant meals, more drinking, more snacks?" },
+// FOOD DIARY — restructured for two days (NEW)
+const FOOD_DIARY_WEEKDAY = {
+  weekdayBreakfast: { type: 'longtext', label: "Typical weekday breakfast — describe what you eat and the time. If you skip, write that and what you do instead (coffee only, etc.)." },
+  weekdayLunch: { type: 'longtext', label: "Typical weekday lunch — what, where (home/canteen/takeout/restaurant), and time." },
+  weekdayDinner: { type: 'longtext', label: "Typical weekday dinner — what, where, and time." },
+  weekdaySnacks: { type: 'longtext', label: "Weekday snacks — what do you reach for between meals, and roughly when?" },
+  weekdayDrinks: { type: 'longtext', label: "Weekday beverages — water, tea, coffee, juice, soda, alcohol. Approximate quantities." },
+};
+
+const FOOD_DIARY_WEEKEND = {
+  weekendBreakfast: { type: 'longtext', label: "Typical weekend breakfast/brunch — what, where, and time. Differences from weekdays?" },
+  weekendLunch: { type: 'longtext', label: "Typical weekend lunch — restaurant meals, home cooking, brunch, etc." },
+  weekendDinner: { type: 'longtext', label: "Typical weekend dinner — what, where, and time." },
+  weekendSnacks: { type: 'longtext', label: "Weekend snacks — what do you reach for? More indulgent, more or less than weekdays?" },
+  weekendDrinks: { type: 'longtext', label: "Weekend beverages — including alcohol if you drink. Quantities matter." },
 };
 
 const DAILY_RHYTHM_QUESTIONS = {
@@ -251,7 +299,6 @@ const WORK_QUESTIONS = {
   },
 };
 
-// Body scan questions — scored 0-4
 const SCAN_SECTIONS = {
   digestive: {
     title: 'Digestive System',
@@ -365,17 +412,14 @@ function calculateLevel(score, max) {
   return { level: 'Low', pct, color: '#7A9B7E' };
 }
 
-// Helper: count yes answers in energy section
 function countYes(obj, keys) {
   return keys.filter(k => obj[k] === 'Yes').length;
 }
 
-// Helper: detect late timing (after midnight bedtime)
 function isLateBedtime(bedtime) {
   return ['00:00–01:30', 'After 01:30', '00:00–02:00', 'After 02:00'].includes(bedtime);
 }
 
-// Helper: detect short sleep
 function isShortSleep(sleepHours) {
   return ['Less than 5', '5–6', '6–7'].includes(sleepHours);
 }
@@ -384,7 +428,6 @@ function generateInsights(data) {
   const insights = [];
   const flags = [];
 
-  // Calculate scores
   const scores = {};
   Object.keys(SCAN_SECTIONS).forEach(key => {
     const answers = data[key] || [];
@@ -394,14 +437,15 @@ function generateInsights(data) {
   });
 
   const f = data.foundation || {};
+  const m = data.medical || {};
   const e = data.eatingHabits || {};
-  const fd = data.foodDiary || {};
+  const fdwd = data.foodDiaryWeekday || {};
+  const fdwe = data.foodDiaryWeekend || {};
   const r = data.dailyRhythm || {};
   const w = data.weekend || {};
   const en = data.energy || {};
   const wk = data.work || {};
 
-  // ====== PATTERN: Gut-Immune Axis ======
   if (scores.digestive?.pct > 35 && scores.autoimmune?.pct > 25) {
     insights.push({
       title: 'Gut-Immune Axis Activation',
@@ -409,7 +453,6 @@ function generateInsights(data) {
     });
   }
 
-  // ====== PATTERN: Microbiome history ======
   const heavyAntibiotics = ['Frequently (more than 10 courses)', 'Several times (4–10 courses)'].includes(f.childhoodAntibiotics);
   if (heavyAntibiotics && (scores.digestive?.pct > 25 || scores.autoimmune?.pct > 25)) {
     insights.push({
@@ -418,17 +461,19 @@ function generateInsights(data) {
     });
   }
 
-  // ====== PATTERN: Blood Sugar Rollercoaster (NEW — uses food diary) ======
-  const skipsBreakfast = fd.breakfast && /skip|rarely|never|no breakfast|don't|nothing/i.test(fd.breakfast);
-  const lateDinner = fd.dinner && /(20|21|22|23):/.test(fd.dinner);
-  const sugaryDrinks = fd.drinks && /(juice|soda|cola|coke|fizzy|sprite|fanta|sweet)/i.test(fd.drinks);
+  // Blood sugar pattern — now uses both weekday and weekend diary
+  const skipsBreakfastWeekday = fdwd.weekdayBreakfast && /skip|rarely|never|no breakfast|don't|nothing/i.test(fdwd.weekdayBreakfast);
+  const lateDinnerWeekday = fdwd.weekdayDinner && /(20|21|22|23):/.test(fdwd.weekdayDinner);
+  const lateDinnerWeekend = fdwe.weekendDinner && /(20|21|22|23):/.test(fdwe.weekendDinner);
+  const sugaryDrinks = (fdwd.weekdayDrinks && /(juice|soda|cola|coke|fizzy|sprite|fanta|sweet)/i.test(fdwd.weekdayDrinks)) ||
+                       (fdwe.weekendDrinks && /(juice|soda|cola|coke|fizzy|sprite|fanta|sweet)/i.test(fdwe.weekendDrinks));
   const carbCravings = e.cravedFoods && /(bread|pasta|pizza|sweet|chocolate|sugar|cake|crackers|chips|cookies|carb)/i.test(e.cravedFoods);
 
-  if (scores.pancreas?.pct > 30 || (skipsBreakfast && lateDinner) || (sugaryDrinks && carbCravings)) {
+  if (scores.pancreas?.pct > 30 || (skipsBreakfastWeekday && lateDinnerWeekday) || (sugaryDrinks && carbCravings)) {
     let body = 'Your body is having trouble keeping glucose stable between meals. ';
     const triggers = [];
-    if (skipsBreakfast) triggers.push('skipping breakfast lets cortisol run unchecked all morning');
-    if (lateDinner) triggers.push('late dinner timing disrupts overnight metabolic recovery');
+    if (skipsBreakfastWeekday) triggers.push('skipping breakfast on weekdays lets cortisol run unchecked all morning');
+    if (lateDinnerWeekday) triggers.push('late weekday dinner timing disrupts overnight metabolic recovery');
     if (sugaryDrinks) triggers.push('liquid sugar (juice, soda) spikes glucose without fiber to slow absorption');
     if (carbCravings) triggers.push('carb cravings are often a downstream signal of the rollercoaster, not a separate problem');
     if (triggers.length) body += 'Specifically, ' + triggers.join('; ') + '. ';
@@ -437,7 +482,7 @@ function generateInsights(data) {
     insights.push({ title: 'Blood Sugar Dysregulation', body });
   }
 
-  // ====== PATTERN: Cortisol & Recovery (uses daily rhythm + sleep) ======
+  // Cortisol pattern
   const lateBed = isLateBedtime(r.bedtime);
   const shortSleep = isShortSleep(r.sleepHours);
   const poorSleep = ['Restless / poor', 'Severe insomnia'].includes(r.sleepQuality);
@@ -460,7 +505,7 @@ function generateInsights(data) {
     insights.push({ title: 'Cortisol & Recovery Stress', body });
   }
 
-  // ====== PATTERN: Atopic predisposition ======
+  // Atopic
   const atopic = (f.familyAtopic || []).filter(x => x !== 'None known').length > 0;
   if (atopic && scores.autoimmune?.pct > 20) {
     insights.push({
@@ -469,7 +514,7 @@ function generateInsights(data) {
     });
   }
 
-  // ====== PATTERN: Oral Allergy Syndrome (NEW) ======
+  // OAS
   const oasFoods = /(apple|pear|peach|cherry|cherries|apricot|carrot|raw fruit|melon|kiwi|hazelnut|almond)/i;
   const cookedTolerance = /(cooked|baked|boiled|stewed|fine when|okay when)/i;
   if (e.suspectedTriggers && oasFoods.test(e.suspectedTriggers) && scores.autoimmune?.pct > 15) {
@@ -481,7 +526,7 @@ function generateInsights(data) {
     insights.push({ title: 'Oral Allergy Syndrome Pattern', body });
   }
 
-  // ====== PATTERN: Weekend Contrast (NEW) ======
+  // Weekend contrast
   const weekendBetter = ['Much better — clear contrast', 'Somewhat better'].includes(w.weekendMood);
   const highWorkStress = ['High-stress / high-stakes'].includes(wk.workEnvironment);
   if (weekendBetter && (highWorkStress || highStress)) {
@@ -491,7 +536,7 @@ function generateInsights(data) {
     });
   }
 
-  // ====== PATTERN: Energy Pattern Mapping (NEW) ======
+  // Multi-system fatigue
   const yesCount = countYes(en, ['needLongSleep', 'lowEnergyOverall', 'hardToGetUp', 'daytimeSleepy', 'hangerDizzy', 'caffeineDependent', 'concentrationIssues', 'dizzyOnStanding', 'unexplainedExhaustion']);
   if (yesCount >= 5) {
     let body = `Your energy pattern shows ${yesCount} out of 9 fatigue indicators. This level typically reflects a combination of three things working together: blood sugar instability, sleep architecture problems, and adrenal recovery deficit. `;
@@ -504,21 +549,57 @@ function generateInsights(data) {
     insights.push({ title: 'Multi-System Fatigue Pattern', body });
   }
 
-  // ====== PATTERN: Late dinner + late bed digestive impact (NEW) ======
-  if (lateDinner && lateBed && scores.digestive?.pct > 25) {
+  // Sleep-digestion conflict
+  if (lateDinnerWeekday && lateBed && scores.digestive?.pct > 25) {
     insights.push({
       title: 'Sleep-Digestion Conflict',
       body: 'Eating late combined with late bedtime means your digestive system is working hard during the hours it should be at rest, and your body is in active digestion when sleep should be deepest. This often shows up as restless sleep, morning bloating, reflux at night, and morning fatigue despite sufficient hours. The fix is structural: leave at least three hours between dinner and sleep, or move dinner earlier rather than skipping it.',
     });
   }
 
-  // ====== PATTERN: Hypermobility + back pain context (NEW) ======
-  const hypermobile = (data.musculoskeletal || [])[1] >= 3; // hypermobility question, score 3+
+  // Hypermobility pattern
+  const hypermobile = (data.musculoskeletal || [])[1] >= 3;
   const chronicBackPain = (data.musculoskeletal || [])[7] >= 2;
   if (hypermobile && chronicBackPain) {
     insights.push({
       title: 'Hypermobility-Driven Pattern',
       body: 'Strong hypermobility paired with chronic neck or back pain suggests your connective tissue is naturally lax and your muscles are doing extra work to stabilize joints that lack mechanical limits. This shows up as exhaustion, episodic flares, and difficulty with strength-based interventions. Targeted stabilization work (Pilates, hypermobility-specific physical therapy), collagen support, and avoiding overstretching are usually more useful than aggressive stretching or general fitness routines.',
+    });
+  }
+
+  // NEW: Toxic load pattern (uses cookware + amalgam)
+  const heatsPlastic = ['Often', 'Daily'].includes(e.plasticHeating);
+  const usesAluminum = (e.cookwareTypes || []).includes('Aluminum / aluminium foil');
+  const usesNonStick = (e.cookwareTypes || []).includes('Non-stick (Teflon)');
+  const hasAmalgam = ['Yes, a few (1–3)', 'Yes, several (4+)'].includes(e.amalgamFillings);
+  const toxicLoad = [heatsPlastic, usesAluminum, usesNonStick, hasAmalgam].filter(Boolean).length;
+
+  if (toxicLoad >= 2 && (scores.detox?.pct > 20 || scores.autoimmune?.pct > 25 || scores.nervous?.pct > 25)) {
+    let body = 'Your everyday environment includes multiple sources of low-grade toxin exposure: ';
+    const sources = [];
+    if (heatsPlastic) sources.push('heating food in plastic containers (releases phthalates and BPA-family compounds)');
+    if (usesAluminum) sources.push('cooking with aluminum or aluminum foil (which leaches under heat and acid contact)');
+    if (usesNonStick) sources.push('non-stick cookware (PFOA/PFAS compounds, especially when scratched or overheated)');
+    if (hasAmalgam) sources.push('amalgam dental fillings (slow continuous mercury vapor release)');
+    body += sources.join(', ') + '. Individually each is small. Stacked together with active inflammation, detox stress, or nervous system symptoms, they form a meaningful cumulative load. Practical swaps — glass or stainless steel for storage and reheating, ceramic or cast iron over non-stick, parchment over foil — reduce the daily input without big lifestyle changes.';
+    insights.push({ title: 'Cumulative Environmental Load', body });
+  }
+
+  // NEW: Oral health → systemic inflammation
+  const poorDental = ['Active issues (gum disease, frequent cavities)', "Haven't seen a dentist in years"].includes(e.oralHealth);
+  const noFloss = ['Rarely', 'Never'].includes(e.dentalHygiene);
+  if ((poorDental || noFloss) && (scores.autoimmune?.pct > 25 || scores.digestive?.pct > 30)) {
+    insights.push({
+      title: 'Oral-Systemic Connection',
+      body: 'Gum disease and chronic oral inflammation are increasingly understood as drivers of systemic inflammation. The mouth is the start of the digestive tract, and pathogenic oral bacteria can translocate to the gut and bloodstream, contributing to inflammation in distant tissues. Daily flossing and a dental cleaning are unglamorous but quietly effective inflammatory interventions when oral health has been neglected.',
+    });
+  }
+
+  // NEW: Weight pattern flag
+  if (m.weightTrend === 'Recent rapid increase' && (scores.endocrine?.pct > 20 || scores.pancreas?.pct > 20)) {
+    insights.push({
+      title: 'Recent Weight Change Worth Investigating',
+      body: 'A recent rapid weight increase combined with hormone or blood sugar signals is worth taking to a doctor for thorough labs. Sudden weight changes — especially without dietary or activity changes — often reflect underlying metabolic, hormonal, or inflammatory shifts rather than caloric balance. Thyroid panels, fasting insulin, and cortisol patterns are good starting points for investigation.',
     });
   }
 
@@ -558,6 +639,14 @@ function generateInsights(data) {
 
   if (wk.recoveryAfterWork === 'Constantly connected / checking') {
     flags.push({ icon: '⚠', text: 'Constant work connectivity means your nervous system never gets a recovery signal. Even short, hard boundaries (phone in another room from 20:00) outperform longer but porous ones.' });
+  }
+
+  if (heatsPlastic) {
+    flags.push({ icon: '⚠', text: 'Microwaving or reheating food in plastic releases endocrine-disrupting compounds. Switching to glass or ceramic for reheating is a near-zero-effort change with meaningful long-term impact.' });
+  }
+
+  if (e.dentalHygiene === 'Never' || e.dentalHygiene === 'Rarely') {
+    flags.push({ icon: '⚠', text: 'Daily flossing addresses inflammation that toothbrushing alone cannot reach. It is one of the lowest-effort, highest-leverage health habits available, with downstream effects on systemic inflammation.' });
   }
 
   return { scores, insights, flags };
@@ -646,7 +735,6 @@ function generateRecommendations(scores, data) {
     });
   }
 
-  // NEW: Eating mechanics
   if (e.eatingSpeed === 'Very fast — barely chew' || e.eatingSpeed === 'Fast — finish before others') {
     recs.push({
       priority: 'Eating mechanics',
@@ -655,6 +743,35 @@ function generateRecommendations(scores, data) {
         'Aim for 20–30 chews per mouthful',
         'Take 20 minutes minimum for any meal',
         'Eat without screens — your brain needs to register the meal',
+      ],
+    });
+  }
+
+  // NEW: Environmental load reduction
+  const heatsPlastic = ['Often', 'Daily'].includes(e.plasticHeating);
+  const usesAluminum = (e.cookwareTypes || []).includes('Aluminum / aluminium foil');
+  const usesNonStick = (e.cookwareTypes || []).includes('Non-stick (Teflon)');
+  if (heatsPlastic || usesAluminum || usesNonStick) {
+    recs.push({
+      priority: 'Environmental load reduction',
+      items: [
+        'Replace plastic food storage with glass for anything heated or microwaved',
+        'Use parchment paper instead of aluminum foil for baking and wrapping',
+        'Replace scratched non-stick pans with cast iron, stainless steel, or ceramic',
+        'Store fats and oils in dark glass — light and plastic both degrade them faster',
+      ],
+    });
+  }
+
+  // NEW: Oral health
+  if (['Never', 'Rarely'].includes(e.dentalHygiene) || ['Active issues (gum disease, frequent cavities)', "Haven't seen a dentist in years"].includes(e.oralHealth)) {
+    recs.push({
+      priority: 'Oral health foundation',
+      items: [
+        'Daily flossing — most efficient anti-inflammatory habit available',
+        'Schedule dental cleaning if more than 6 months overdue',
+        'Consider tongue scraping in the morning for additional bacterial reduction',
+        'Discuss amalgam fillings with a biological dentist if you have several',
       ],
     });
   }
@@ -1004,7 +1121,7 @@ function PersonalScreen({ data, update, onNext, onBack }) {
   );
 }
 
-function GenericFormScreen({ sectionKey, sectionNumber, title, subtitle, questions, requiredKeys, data, update, onNext, onBack }) {
+function GenericFormScreen({ sectionKey, sectionNumber, title, subtitle, questions, requiredKeys, data, update, onNext, onBack, isLastSection }) {
   const sectionData = data[sectionKey] || {};
   const canProceed = (requiredKeys || []).every(k => {
     const q = questions[k];
@@ -1030,7 +1147,7 @@ function GenericFormScreen({ sectionKey, sectionNumber, title, subtitle, questio
         if (q.type === 'multiselect') return wrapper(<MultiSelectField label={q.label} options={q.options} value={sectionData[key]} onChange={onChange} />);
         return null;
       })}
-      <NavButtons onBack={onBack} onNext={onNext} canProceed={canProceed} />
+      <NavButtons onBack={onBack} onNext={onNext} canProceed={canProceed} nextLabel={isLastSection ? 'Generate Report' : 'Continue'} />
     </div>
   );
 }
@@ -1051,15 +1168,40 @@ function VitalsScreen({ data, update, onNext, onBack }) {
   );
 }
 
-function MedicalScreen({ data, update, onNext, onBack }) {
-  const m = data.medical || {};
+// Combined Food Diary screen — weekday + weekend in one screen with internal sub-headers
+function FoodDiaryScreen({ data, update, onNext, onBack }) {
+  const wd = data.foodDiaryWeekday || {};
+  const we = data.foodDiaryWeekend || {};
+  const requiredWeekday = ['weekdayBreakfast', 'weekdayLunch', 'weekdayDinner'];
+  const requiredWeekend = ['weekendBreakfast', 'weekendLunch', 'weekendDinner'];
+  const allReq = [...requiredWeekday.map(k => wd[k]), ...requiredWeekend.map(k => we[k])];
+  const canProceed = allReq.every(v => v && v.trim && v.trim().length > 0);
+
+  const renderField = (sectionKey, key, q, idx) => (
+    <div key={key} style={{ paddingTop: idx === 0 ? 0 : '1.5rem', paddingBottom: '0.5rem', borderTop: idx === 0 ? 'none' : `1px solid ${COLORS.rule}`, marginBottom: '1.5rem' }}>
+      <TextField label={q.label} value={data[sectionKey]?.[key]} multiline onChange={v => update(`${sectionKey}.${key}`, v)} />
+    </div>
+  );
+
   return (
     <div className="max-w-2xl mx-auto px-6 py-12">
-      <SectionHeader eyebrow="Section 04 of 14" title="Medical history" subtitle="Diagnosed conditions, medications, allergies. Be detailed — dosages, durations, what you've tried." />
-      <TextField label="Diagnosed conditions and surgeries (with dates if known)" value={m.conditions} multiline onChange={v => update('medical.conditions', v)} />
-      <TextField label="Current medications and supplements (include doses, frequency, how long you've been taking them)" value={m.meds} multiline onChange={v => update('medical.meds', v)} />
-      <TextField label="Known allergies (foods, medications, environmental, severity)" value={m.allergies} multiline onChange={v => update('medical.allergies', v)} />
-      <NavButtons onBack={onBack} onNext={onNext} />
+      <SectionHeader eyebrow="Section 06 of 14" title="Food diary" subtitle="Walk through a typical weekday and a typical weekend day. Times matter — note when, not just what." />
+
+      <div style={{ marginTop: '1rem', marginBottom: '2rem', paddingBottom: '0.5rem', borderBottom: `2px solid ${COLORS.accent}` }}>
+        <p style={{ fontFamily: 'Cormorant Garamond, Georgia, serif', fontSize: '0.8rem', letterSpacing: '0.2em', textTransform: 'uppercase', color: COLORS.accent }}>
+          Typical Weekday
+        </p>
+      </div>
+      {Object.entries(FOOD_DIARY_WEEKDAY).map(([key, q], i) => renderField('foodDiaryWeekday', key, q, i))}
+
+      <div style={{ marginTop: '3rem', marginBottom: '2rem', paddingBottom: '0.5rem', borderBottom: `2px solid ${COLORS.accent}` }}>
+        <p style={{ fontFamily: 'Cormorant Garamond, Georgia, serif', fontSize: '0.8rem', letterSpacing: '0.2em', textTransform: 'uppercase', color: COLORS.accent }}>
+          Typical Weekend Day
+        </p>
+      </div>
+      {Object.entries(FOOD_DIARY_WEEKEND).map(([key, q], i) => renderField('foodDiaryWeekend', key, q, i))}
+
+      <NavButtons onBack={onBack} onNext={onNext} canProceed={canProceed} />
     </div>
   );
 }
@@ -1314,7 +1456,6 @@ async function buildDocx(docx, data, analysis, recommendations) {
     children: [new Paragraph({ children: [new TextRun({ text, bold: true, color: 'F4F1EA', font: 'Georgia', size: 20 })] })],
   });
 
-  // Helper for rendering a Q/A section with detailed responses
   const renderQA = (sectionTitle, questions, sectionData) => {
     const items = [];
     items.push(heading(sectionTitle, HeadingLevel.HEADING_2));
@@ -1330,7 +1471,6 @@ async function buildDocx(docx, data, analysis, recommendations) {
 
   const children = [];
 
-  // Title
   children.push(new Paragraph({
     alignment: AlignmentType.CENTER, spacing: { after: 100 },
     children: [new TextRun({ text: 'BODY COMPASS', bold: true, font: 'Georgia', size: 36, color: '2A2824' })],
@@ -1344,7 +1484,6 @@ async function buildDocx(docx, data, analysis, recommendations) {
     children: [new TextRun({ text: new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }), font: 'Georgia', size: 18, color: '5C5852' })],
   }));
 
-  // Profile
   if (data.personal?.name || data.personal?.age) {
     children.push(heading('Profile'));
     const rows = [];
@@ -1359,7 +1498,6 @@ async function buildDocx(docx, data, analysis, recommendations) {
     children.push(para(''));
   }
 
-  // Vitals
   const v = data.vitals || {};
   if (Object.values(v).some(x => x)) {
     children.push(heading('Vital statistics'));
@@ -1385,53 +1523,43 @@ async function buildDocx(docx, data, analysis, recommendations) {
     children.push(para(''));
   }
 
-  // Foundation
   if (Object.keys(data.foundation || {}).length > 0) {
     children.push(...renderQA('Context & background', FOUNDATION_QUESTIONS, data.foundation || {}));
   }
 
-  // Medical
-  const m = data.medical || {};
-  if (m.conditions || m.meds || m.allergies) {
-    children.push(heading('Medical history'));
-    if (m.conditions) { children.push(para('Diagnosed conditions and surgeries', { bold: true })); children.push(para(m.conditions, { spacing: { after: 200 } })); }
-    if (m.meds) { children.push(para('Medications and supplements', { bold: true })); children.push(para(m.meds, { spacing: { after: 200 } })); }
-    if (m.allergies) { children.push(para('Known allergies', { bold: true })); children.push(para(m.allergies, { spacing: { after: 200 } })); }
+  if (Object.keys(data.medical || {}).length > 0) {
+    children.push(...renderQA('Medical history', MEDICAL_QUESTIONS, data.medical || {}));
   }
 
-  // Eating habits
   if (Object.keys(data.eatingHabits || {}).length > 0) {
     children.push(...renderQA('Eating habits', EATING_HABITS_QUESTIONS, data.eatingHabits || {}));
   }
 
-  // Food diary
-  if (Object.keys(data.foodDiary || {}).length > 0) {
-    children.push(...renderQA('Food diary', FOOD_DIARY_QUESTIONS, data.foodDiary || {}));
+  if (Object.keys(data.foodDiaryWeekday || {}).length > 0) {
+    children.push(...renderQA('Food diary — weekday', FOOD_DIARY_WEEKDAY, data.foodDiaryWeekday || {}));
+  }
+  if (Object.keys(data.foodDiaryWeekend || {}).length > 0) {
+    children.push(...renderQA('Food diary — weekend', FOOD_DIARY_WEEKEND, data.foodDiaryWeekend || {}));
   }
 
-  // Daily rhythm
   if (Object.keys(data.dailyRhythm || {}).length > 0) {
     children.push(...renderQA('Daily rhythm', DAILY_RHYTHM_QUESTIONS, data.dailyRhythm || {}));
   }
 
-  // Weekend
   if (Object.keys(data.weekend || {}).length > 0) {
     children.push(...renderQA('Weekend variation', WEEKEND_QUESTIONS, data.weekend || {}));
   }
 
-  // Energy
   if (Object.keys(data.energy || {}).length > 0) {
     children.push(...renderQA('Energy levels', ENERGY_QUESTIONS, data.energy || {}));
   }
 
-  // Work
   if (Object.keys(data.work || {}).length > 0) {
     children.push(...renderQA('Work & stress', WORK_QUESTIONS, data.work || {}));
   }
 
   children.push(new Paragraph({ children: [new PageBreak()] }));
 
-  // Score summary
   children.push(heading('Score summary'));
   const summaryRows = [
     new TableRow({ children: [headerCell('System', 4000), headerCell('Score', 1500), headerCell('Max', 1200), headerCell('Level', 2660)] }),
@@ -1448,7 +1576,6 @@ async function buildDocx(docx, data, analysis, recommendations) {
   children.push(new Table({ width: { size: 9360, type: WidthType.DXA }, columnWidths: [4000, 1500, 1200, 2660], rows: summaryRows }));
   children.push(para(''));
 
-  // Detailed scan responses
   children.push(heading('Detailed scan responses'));
   Object.entries(SCAN_SECTIONS).forEach(([key, section]) => {
     const answers = data[key] || [];
@@ -1465,7 +1592,6 @@ async function buildDocx(docx, data, analysis, recommendations) {
 
   children.push(new Paragraph({ children: [new PageBreak()] }));
 
-  // Insights
   if (analysis.insights.length > 0) {
     children.push(heading('What stands out'));
     analysis.insights.forEach(insight => {
@@ -1474,7 +1600,6 @@ async function buildDocx(docx, data, analysis, recommendations) {
     });
   }
 
-  // Flags
   if (analysis.flags.length > 0) {
     children.push(heading('Quick wins'));
     analysis.flags.forEach(flag => {
@@ -1482,7 +1607,6 @@ async function buildDocx(docx, data, analysis, recommendations) {
     });
   }
 
-  // Recommendations
   if (recommendations.length > 0) {
     children.push(heading('Areas to explore'));
     recommendations.forEach(rec => {
@@ -1494,7 +1618,6 @@ async function buildDocx(docx, data, analysis, recommendations) {
     });
   }
 
-  // Lab tests
   children.push(heading('Tests worth requesting'));
   children.push(para('Bring this list to your doctor as a starting point for conversation.', { italics: true, spacing: { after: 200 } }));
   const labRows = [new TableRow({ children: [headerCell('Test', 3500), headerCell('Why', 5860)] })];
@@ -1535,7 +1658,8 @@ async function buildDocx(docx, data, analysis, recommendations) {
 
 const initialState = () => ({
   personal: {}, foundation: {}, vitals: {}, medical: {},
-  eatingHabits: {}, foodDiary: {}, dailyRhythm: {}, weekend: {}, energy: {}, work: {},
+  eatingHabits: {}, foodDiaryWeekday: {}, foodDiaryWeekend: {},
+  dailyRhythm: {}, weekend: {}, energy: {}, work: {},
   digestive: Array(8).fill(null),
   detox: Array(8).fill(null),
   pancreas: Array(8).fill(null),
@@ -1563,11 +1687,6 @@ export default function App() {
     });
   };
 
-  // Step ordering:
-  // 0=intro, 1=personal, 2=foundation, 3=vitals, 4=medical,
-  // 5=eatingHabits, 6=foodDiary, 7=dailyRhythm, 8=weekend, 9=energy, 10=work,
-  // 11..17=scan sections (digestive, detox, pancreas, endocrine, nervous, musculoskeletal, autoimmune),
-  // 18=report
   const totalSteps = 18;
   const progress = step === 0 ? 0 : step >= totalSteps ? 100 : (step / totalSteps) * 100;
 
@@ -1590,25 +1709,25 @@ export default function App() {
       />
     );
     if (step === 3) return <VitalsScreen data={data} update={update} onNext={next} onBack={back} />;
-    if (step === 4) return <MedicalScreen data={data} update={update} onNext={next} onBack={back} />;
+    if (step === 4) return (
+      <GenericFormScreen
+        sectionKey="medical" sectionNumber={4} title="Medical history"
+        subtitle="Diagnosed conditions, medications, allergies, weight history. Be detailed — dosages, durations, what you've tried."
+        questions={MEDICAL_QUESTIONS}
+        requiredKeys={['weightTrend']}
+        data={data} update={update} onNext={next} onBack={back}
+      />
+    );
     if (step === 5) return (
       <GenericFormScreen
         sectionKey="eatingHabits" sectionNumber={5} title="Eating habits"
-        subtitle="Your relationship with food, the foods you reach for, and patterns that may be invisible to you."
+        subtitle="Your relationship with food, cookware, oral health, and patterns that may be invisible to you."
         questions={EATING_HABITS_QUESTIONS}
-        requiredKeys={['hydration', 'eatingSpeed', 'mealRegularity', 'bowelFrequency']}
+        requiredKeys={['hydration', 'eatingSpeed', 'mealRegularity', 'bowelFrequency', 'amalgamFillings', 'dentalHygiene']}
         data={data} update={update} onNext={next} onBack={back}
       />
     );
-    if (step === 6) return (
-      <GenericFormScreen
-        sectionKey="foodDiary" sectionNumber={6} title="Food diary"
-        subtitle="Walk through a typical day. Times matter — note when, not just what."
-        questions={FOOD_DIARY_QUESTIONS}
-        requiredKeys={['breakfast', 'lunch', 'dinner']}
-        data={data} update={update} onNext={next} onBack={back}
-      />
-    );
+    if (step === 6) return <FoodDiaryScreen data={data} update={update} onNext={next} onBack={back} />;
     if (step === 7) return (
       <GenericFormScreen
         sectionKey="dailyRhythm" sectionNumber={7} title="Daily rhythm"
