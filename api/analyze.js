@@ -51,7 +51,8 @@ Important constraints:
 - If the user mentioned specific medications (e.g., thyroid replacement), flag any supplement interactions (e.g., calcium/iron/magnesium spacing).
 - Avoid alarmism. Be honest about concerning patterns without catastrophizing.
 - Never invent specific lab values, dates, or symptoms the user did not provide.
-- If critical data is missing for a confident insight, say so rather than fabricating connection.`;
+- If critical data is missing for a confident insight, say so rather than fabricating connection.
+- Keep total response under 6000 words. Be substantive but concise; avoid filler.`;
 
 function formatUserData(data) {
   // Transform the raw questionnaire data into clean, readable prose for Claude
@@ -205,7 +206,7 @@ export default async function handler(req, res) {
 
     const message = await client.messages.create({
       model: 'claude-sonnet-4-6',
-      max_tokens: 8000,
+      max_tokens: 7000,
       system: SYSTEM_PROMPT,
       messages: [
         {
