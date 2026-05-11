@@ -1,6 +1,8 @@
-import React, { useState, useMemo, useEffect, useRef } from 'react';
+import React, { useState, useMemo, useEffect, useRef, createContext, useContext } from 'react';
 import { ChevronRight, ChevronLeft, Download, AlertCircle, CheckCircle2, Compass, Loader2, Sparkles, Key, Shield } from 'lucide-react';
+
 const TURNSTILE_SITE_KEY = '0x4AAAAAADFMo_vNN4bZr1US';
+
 // ==========================================================================
 // QUESTION BANK
 // ==========================================================================
@@ -48,7 +50,6 @@ const FOUNDATION_QUESTIONS = {
   },
 };
 
-// MEDICAL HISTORY now includes weight history (NEW)
 const MEDICAL_QUESTIONS = {
   conditions: { type: 'longtext', label: "Diagnosed conditions and surgeries (with dates if known)" },
   meds: { type: 'longtext', label: "Current medications and supplements (include doses, frequency, how long you've been taking them)" },
@@ -61,7 +62,6 @@ const MEDICAL_QUESTIONS = {
   },
 };
 
-// EATING HABITS — added cookware, fillings, dental hygiene questions (NEW)
 const EATING_HABITS_QUESTIONS = {
   favoriteFoods: { type: 'longtext', label: "What are your favorite foods? Be specific — list the dishes, brands, or cuisines you reach for." },
   cravedFoods: { type: 'longtext', label: "What foods do you crave? When and why do you think these cravings happen?" },
@@ -109,7 +109,6 @@ const EATING_HABITS_QUESTIONS = {
     label: "Artificial sweeteners (diet drinks, sugar-free gum, packaged 'sugar-free' products):",
     options: ['Never use', 'Rarely', 'Sometimes', 'Daily'],
   },
-  // NEW questions below
   cookwareTypes: {
     type: 'multiselect',
     label: "Which materials do you regularly cook with or store food in? (select all that apply)",
@@ -152,7 +151,6 @@ const EATING_HABITS_QUESTIONS = {
   },
 };
 
-// FOOD DIARY — restructured for two days (NEW)
 const FOOD_DIARY_WEEKDAY = {
   weekdayBreakfast: { type: 'longtext', label: "Typical weekday breakfast — describe what you eat and the time. If you skip, write that and what you do instead (coffee only, etc.)." },
   weekdayLunch: { type: 'longtext', label: "Typical weekday lunch — what, where (home/canteen/takeout/restaurant), and time." },
@@ -401,7 +399,7 @@ const SCAN_SECTIONS = {
 };
 
 // ==========================================================================
-// SCORING + ANALYSIS ENGINE
+// SCORING + ANALYSIS ENGINE (unchanged from Phase 1)
 // ==========================================================================
 
 function calculateLevel(score, max) {
@@ -461,10 +459,8 @@ function generateInsights(data) {
     });
   }
 
-  // Blood sugar pattern — now uses both weekday and weekend diary
   const skipsBreakfastWeekday = fdwd.weekdayBreakfast && /skip|rarely|never|no breakfast|don't|nothing/i.test(fdwd.weekdayBreakfast);
   const lateDinnerWeekday = fdwd.weekdayDinner && /(20|21|22|23):/.test(fdwd.weekdayDinner);
-  const lateDinnerWeekend = fdwe.weekendDinner && /(20|21|22|23):/.test(fdwe.weekendDinner);
   const sugaryDrinks = (fdwd.weekdayDrinks && /(juice|soda|cola|coke|fizzy|sprite|fanta|sweet)/i.test(fdwd.weekdayDrinks)) ||
                        (fdwe.weekendDrinks && /(juice|soda|cola|coke|fizzy|sprite|fanta|sweet)/i.test(fdwe.weekendDrinks));
   const carbCravings = e.cravedFoods && /(bread|pasta|pizza|sweet|chocolate|sugar|cake|crackers|chips|cookies|carb)/i.test(e.cravedFoods);
@@ -478,11 +474,9 @@ function generateInsights(data) {
     if (carbCravings) triggers.push('carb cravings are often a downstream signal of the rollercoaster, not a separate problem');
     if (triggers.length) body += 'Specifically, ' + triggers.join('; ') + '. ';
     body += 'Stabilizing this typically starts with protein and fat at breakfast within an hour of waking, eating within consistent windows, and replacing liquid sugar with whole foods.';
-
     insights.push({ title: 'Blood Sugar Dysregulation', body });
   }
 
-  // Cortisol pattern
   const lateBed = isLateBedtime(r.bedtime);
   const shortSleep = isShortSleep(r.sleepHours);
   const poorSleep = ['Restless / poor', 'Severe insomnia'].includes(r.sleepQuality);
@@ -501,11 +495,9 @@ function generateInsights(data) {
     if (noStressPractice) factors.push('no daily stress-discharge practice means cortisol accumulates without release');
     if (factors.length) body += 'In your case: ' + factors.join('; ') + '. ';
     body += 'The single highest-impact intervention is moving bedtime to before midnight to capture the natural cortisol reset window.';
-
     insights.push({ title: 'Cortisol & Recovery Stress', body });
   }
 
-  // Atopic
   const atopic = (f.familyAtopic || []).filter(x => x !== 'None known').length > 0;
   if (atopic && scores.autoimmune?.pct > 20) {
     insights.push({
@@ -514,7 +506,6 @@ function generateInsights(data) {
     });
   }
 
-  // OAS
   const oasFoods = /(apple|pear|peach|cherry|cherries|apricot|carrot|raw fruit|melon|kiwi|hazelnut|almond)/i;
   const cookedTolerance = /(cooked|baked|boiled|stewed|fine when|okay when)/i;
   if (e.suspectedTriggers && oasFoods.test(e.suspectedTriggers) && scores.autoimmune?.pct > 15) {
@@ -526,7 +517,6 @@ function generateInsights(data) {
     insights.push({ title: 'Oral Allergy Syndrome Pattern', body });
   }
 
-  // Weekend contrast
   const weekendBetter = ['Much better — clear contrast', 'Somewhat better'].includes(w.weekendMood);
   const highWorkStress = ['High-stress / high-stakes'].includes(wk.workEnvironment);
   if (weekendBetter && (highWorkStress || highStress)) {
@@ -536,7 +526,6 @@ function generateInsights(data) {
     });
   }
 
-  // Multi-system fatigue
   const yesCount = countYes(en, ['needLongSleep', 'lowEnergyOverall', 'hardToGetUp', 'daytimeSleepy', 'hangerDizzy', 'caffeineDependent', 'concentrationIssues', 'dizzyOnStanding', 'unexplainedExhaustion']);
   if (yesCount >= 5) {
     let body = `Your energy pattern shows ${yesCount} out of 9 fatigue indicators. This level typically reflects a combination of three things working together: blood sugar instability, sleep architecture problems, and adrenal recovery deficit. `;
@@ -549,7 +538,6 @@ function generateInsights(data) {
     insights.push({ title: 'Multi-System Fatigue Pattern', body });
   }
 
-  // Sleep-digestion conflict
   if (lateDinnerWeekday && lateBed && scores.digestive?.pct > 25) {
     insights.push({
       title: 'Sleep-Digestion Conflict',
@@ -557,7 +545,6 @@ function generateInsights(data) {
     });
   }
 
-  // Hypermobility pattern
   const hypermobile = (data.musculoskeletal || [])[1] >= 3;
   const chronicBackPain = (data.musculoskeletal || [])[7] >= 2;
   if (hypermobile && chronicBackPain) {
@@ -567,7 +554,6 @@ function generateInsights(data) {
     });
   }
 
-  // NEW: Toxic load pattern (uses cookware + amalgam)
   const heatsPlastic = ['Often', 'Daily'].includes(e.plasticHeating);
   const usesAluminum = (e.cookwareTypes || []).includes('Aluminum / aluminium foil');
   const usesNonStick = (e.cookwareTypes || []).includes('Non-stick (Teflon)');
@@ -585,7 +571,6 @@ function generateInsights(data) {
     insights.push({ title: 'Cumulative Environmental Load', body });
   }
 
-  // NEW: Oral health → systemic inflammation
   const poorDental = ['Active issues (gum disease, frequent cavities)', "Haven't seen a dentist in years"].includes(e.oralHealth);
   const noFloss = ['Rarely', 'Never'].includes(e.dentalHygiene);
   if ((poorDental || noFloss) && (scores.autoimmune?.pct > 25 || scores.digestive?.pct > 30)) {
@@ -595,7 +580,6 @@ function generateInsights(data) {
     });
   }
 
-  // NEW: Weight pattern flag
   if (m.weightTrend === 'Recent rapid increase' && (scores.endocrine?.pct > 20 || scores.pancreas?.pct > 20)) {
     insights.push({
       title: 'Recent Weight Change Worth Investigating',
@@ -603,48 +587,36 @@ function generateInsights(data) {
     });
   }
 
-  // ====== QUICK WINS / FLAGS ======
-
   if (e.eatingSpeed === 'Very fast — barely chew' || e.eatingSpeed === 'Fast — finish before others') {
     flags.push({ icon: '⚠', text: 'Eating too fast contributes to bloating, incomplete digestion, and air swallowing. Putting the fork down between bites and chewing 20–30 times changes digestion mechanics measurably within days.' });
   }
-
   if (e.hydration === 'Less than 0.5L' || e.hydration === '0.5–1L') {
     flags.push({ icon: '⚠', text: 'Insufficient hydration slows digestion, concentrates urine, and worsens fatigue. Aim for 30ml per kg of body weight as a baseline.' });
   }
-
   if (lateBed) {
     flags.push({ icon: '⚠', text: 'Bedtimes after midnight miss the natural cortisol reset window (22:00–00:00) where deepest restorative sleep occurs. The timing matters as much as the duration.' });
   }
-
   if (sugaryDrinks) {
     flags.push({ icon: '⚠', text: 'Liquid sugar (juice, soda, sweetened coffee) hits the bloodstream without the fiber that slows whole-food sugar. Replacing these with water, sparkling water, or whole fruit alone can produce visible body composition changes within weeks.' });
   }
-
   if (lateExercise) {
     flags.push({ icon: '⚠', text: 'Training late evening raises core body temperature and cortisol exactly when both should be falling for sleep. Moving training earlier — even by 90 minutes — often improves sleep quality dramatically.' });
   }
-
   if (e.fizzyDrinks === 'Daily') {
     flags.push({ icon: '⚠', text: 'Daily fizzy drinks add carbonation-driven bloating on top of any sweeteners. Even unsweetened sparkling water in large volumes can worsen reflux and gas.' });
   }
-
   if (e.highHeatCooking === 'Several times per week' || e.highHeatCooking === 'Daily') {
     flags.push({ icon: '⚠', text: 'Frequent high-heat cooking (grilling, frying, charring) creates advanced glycation end products (AGEs) and oxidized fats, both of which drive systemic inflammation. Lower-heat methods (steaming, slow-cooking, stewing) are gentler on inflamed systems.' });
   }
-
   if (en.caffeineDependent === 'Yes' && yesCount >= 4) {
     flags.push({ icon: '⚠', text: 'Caffeine dependency layered on multi-system fatigue is essentially borrowing energy you do not have. The crash deepens the underlying deficit. Tapering caffeine while addressing root causes feels worse before it feels better, but is the path through.' });
   }
-
   if (wk.recoveryAfterWork === 'Constantly connected / checking') {
     flags.push({ icon: '⚠', text: 'Constant work connectivity means your nervous system never gets a recovery signal. Even short, hard boundaries (phone in another room from 20:00) outperform longer but porous ones.' });
   }
-
   if (heatsPlastic) {
     flags.push({ icon: '⚠', text: 'Microwaving or reheating food in plastic releases endocrine-disrupting compounds. Switching to glass or ceramic for reheating is a near-zero-effort change with meaningful long-term impact.' });
   }
-
   if (e.dentalHygiene === 'Never' || e.dentalHygiene === 'Rarely') {
     flags.push({ icon: '⚠', text: 'Daily flossing addresses inflammation that toothbrushing alone cannot reach. It is one of the lowest-effort, highest-leverage health habits available, with downstream effects on systemic inflammation.' });
   }
@@ -654,7 +626,6 @@ function generateInsights(data) {
 
 function generateRecommendations(scores, data) {
   const recs = [];
-  const f = data.foundation || {};
   const e = data.eatingHabits || {};
   const r = data.dailyRhythm || {};
 
@@ -747,7 +718,6 @@ function generateRecommendations(scores, data) {
     });
   }
 
-  // NEW: Environmental load reduction
   const heatsPlastic = ['Often', 'Daily'].includes(e.plasticHeating);
   const usesAluminum = (e.cookwareTypes || []).includes('Aluminum / aluminium foil');
   const usesNonStick = (e.cookwareTypes || []).includes('Non-stick (Teflon)');
@@ -763,7 +733,6 @@ function generateRecommendations(scores, data) {
     });
   }
 
-  // NEW: Oral health
   if (['Never', 'Rarely'].includes(e.dentalHygiene) || ['Active issues (gum disease, frequent cavities)', "Haven't seen a dentist in years"].includes(e.oralHealth)) {
     recs.push({
       priority: 'Oral health foundation',
@@ -793,7 +762,7 @@ const LAB_TESTS = [
 ];
 
 // ==========================================================================
-// UI COMPONENTS
+// DESIGN SYSTEM
 // ==========================================================================
 
 const COLORS = {
@@ -807,26 +776,83 @@ const COLORS = {
   highlight: '#E8DCC4',
 };
 
+// Phase 3.5 — per-section accent palette ("editorial & confident")
+const SECTION_PALETTE = {
+  personal:        { eyebrow: '#A86B3F', card: '#F8F1E7', deep: '#7A4A24' },
+  foundation:      { eyebrow: '#B6593E', card: '#F9EDE5', deep: '#7E3621' },
+  vitals:          { eyebrow: '#6E8B6B', card: '#EDF1E8', deep: '#43614A' },
+  medical:         { eyebrow: '#A05A37', card: '#F8EAE0', deep: '#6E371B' },
+  eatingHabits:    { eyebrow: '#7A8245', card: '#F0EFE0', deep: '#4D532A' },
+  foodDiary:       { eyebrow: '#B58B3F', card: '#F8EFDD', deep: '#7C5C21' },
+  dailyRhythm:     { eyebrow: '#3F6E70', card: '#E2EDED', deep: '#1F4546' },
+  weekend:         { eyebrow: '#C26B5A', card: '#FBE8E2', deep: '#8B4135' },
+  energy:          { eyebrow: '#B7853A', card: '#F8EEDA', deep: '#7B5520' },
+  work:            { eyebrow: '#6B5B7E', card: '#EDE7F1', deep: '#42365A' },
+  digestive:       { eyebrow: '#9E4A2E', card: '#F5E3DA', deep: '#6B2C18' },
+  detox:           { eyebrow: '#5B7C42', card: '#E7EFE0', deep: '#3A5226' },
+  pancreas:        { eyebrow: '#C29331', card: '#F9EFD2', deep: '#7E5E15' },
+  endocrine:       { eyebrow: '#8A5F8E', card: '#F0E5F1', deep: '#5A3A5E' },
+  nervous:         { eyebrow: '#4A6F92', card: '#E1EAF1', deep: '#2A4A6A' },
+  musculoskeletal: { eyebrow: '#7C5B43', card: '#EFE6DC', deep: '#523926' },
+  autoimmune:      { eyebrow: '#A2456B', card: '#F5E1E8', deep: '#702B47' },
+};
+
+// Phase 3.5 — font size context for A−/A+ toggle
+const FontSizeContext = createContext({ scale: 1, setScale: () => {} });
+const FONT_SCALES = [0.9, 1.0, 1.15, 1.3];
+
+// ==========================================================================
+// SHARED UI COMPONENTS
+// ==========================================================================
+
 function Header({ progress }) {
+  const { scale, setScale } = useContext(FontSizeContext);
+  const decreaseScale = () => {
+    const idx = FONT_SCALES.indexOf(scale);
+    if (idx > 0) setScale(FONT_SCALES[idx - 1]);
+  };
+  const increaseScale = () => {
+    const idx = FONT_SCALES.indexOf(scale);
+    if (idx < FONT_SCALES.length - 1) setScale(FONT_SCALES[idx + 1]);
+  };
   return (
-    <header className="sticky top-0 z-10 backdrop-blur-md" style={{ background: 'rgba(244, 241, 234, 0.85)', borderBottom: `1px solid ${COLORS.rule}` }}>
-      <div className="max-w-3xl mx-auto px-6 py-4 flex items-center justify-between">
+    <header className="sticky top-0 z-10 backdrop-blur-md" style={{ background: 'rgba(244, 241, 234, 0.88)', borderBottom: `1px solid ${COLORS.rule}` }}>
+      <div className="max-w-3xl mx-auto px-6 py-4 flex items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <Compass size={20} style={{ color: COLORS.accent }} strokeWidth={1.5} />
           <span style={{ fontFamily: 'Cormorant Garamond, Georgia, serif', fontSize: '1.25rem', fontWeight: 500, color: COLORS.ink, letterSpacing: '0.02em' }}>
             Body Compass
           </span>
         </div>
-        {progress != null && (
-          <div className="flex items-center gap-3">
-            <div className="w-32 h-1 rounded-full overflow-hidden" style={{ background: COLORS.rule }}>
-              <div className="h-full transition-all duration-500" style={{ width: `${progress}%`, background: COLORS.accent }} />
-            </div>
-            <span style={{ fontFamily: 'Cormorant Garamond, Georgia, serif', fontSize: '0.85rem', color: COLORS.inkLight, fontVariantNumeric: 'tabular-nums' }}>
-              {Math.round(progress)}%
-            </span>
+        <div className="flex items-center gap-3">
+          <div className="flex items-center" style={{ border: `1px solid ${COLORS.rule}`, borderRadius: '2px' }}>
+            <button
+              onClick={decreaseScale}
+              aria-label="Decrease font size"
+              style={{ background: 'transparent', border: 'none', padding: '0.25rem 0.6rem', cursor: 'pointer', color: COLORS.inkLight, fontFamily: 'Cormorant Garamond, Georgia, serif', fontSize: '0.85rem' }}
+            >
+              A−
+            </button>
+            <div style={{ width: 1, height: 16, background: COLORS.rule }} />
+            <button
+              onClick={increaseScale}
+              aria-label="Increase font size"
+              style={{ background: 'transparent', border: 'none', padding: '0.25rem 0.6rem', cursor: 'pointer', color: COLORS.inkLight, fontFamily: 'Cormorant Garamond, Georgia, serif', fontSize: '1.05rem' }}
+            >
+              A+
+            </button>
           </div>
-        )}
+          {progress != null && (
+            <div className="hidden sm:flex items-center gap-3">
+              <div className="w-32 h-1 rounded-full overflow-hidden" style={{ background: COLORS.rule }}>
+                <div className="h-full transition-all duration-500" style={{ width: `${progress}%`, background: COLORS.accent }} />
+              </div>
+              <span style={{ fontFamily: 'Cormorant Garamond, Georgia, serif', fontSize: '0.85rem', color: COLORS.inkLight, fontVariantNumeric: 'tabular-nums' }}>
+                {Math.round(progress)}%
+              </span>
+            </div>
+          )}
+        </div>
       </div>
     </header>
   );
@@ -843,7 +869,7 @@ function IntroScreen({ onStart }) {
           Map the patterns<br/>
           <em style={{ fontStyle: 'italic', color: COLORS.accent }}>your body</em> is signaling.
         </h1>
-        <p style={{ fontSize: '1.15rem', lineHeight: 1.6, color: COLORS.inkLight, marginBottom: '3rem', maxWidth: '36rem' }}>
+        <p style={{ fontSize: '1.2rem', lineHeight: 1.65, color: COLORS.inkLight, marginBottom: '3rem', maxWidth: '36rem' }}>
           A structured questionnaire spanning seven body systems and the daily habits that shape them. At the end, you'll receive a downloadable report mapping your scores, surfacing patterns, and pointing toward areas worth exploring with a healthcare professional.
         </p>
       </div>
@@ -855,7 +881,7 @@ function IntroScreen({ onStart }) {
           { label: 'Privacy', value: 'Local only' },
         ].map(item => (
           <div key={item.label} style={{ borderTop: `1px solid ${COLORS.rule}`, paddingTop: '1rem' }}>
-            <div style={{ fontFamily: 'Cormorant Garamond, Georgia, serif', fontSize: '0.75rem', letterSpacing: '0.2em', textTransform: 'uppercase', color: COLORS.inkLight, marginBottom: '0.5rem' }}>
+            <div style={{ fontFamily: 'Cormorant Garamond, Georgia, serif', fontSize: '0.78rem', letterSpacing: '0.2em', textTransform: 'uppercase', color: COLORS.inkLight, marginBottom: '0.5rem' }}>
               {item.label}
             </div>
             <div style={{ fontFamily: 'Cormorant Garamond, Georgia, serif', fontSize: '1.5rem', fontWeight: 500, color: COLORS.ink }}>
@@ -865,10 +891,10 @@ function IntroScreen({ onStart }) {
         ))}
       </div>
 
-      <div style={{ background: COLORS.highlight, border: `1px solid ${COLORS.rule}`, padding: '1.5rem', marginBottom: '1rem' }}>
+      <div style={{ background: COLORS.highlight, border: `1px solid ${COLORS.rule}`, padding: '1.75rem', marginBottom: '1rem' }}>
         <div className="flex gap-3">
-          <CheckCircle2 size={18} style={{ color: COLORS.accentDark, flexShrink: 0, marginTop: '2px' }} strokeWidth={1.5} />
-          <div style={{ fontSize: '0.95rem', lineHeight: 1.6, color: COLORS.ink }}>
+          <CheckCircle2 size={20} style={{ color: COLORS.accentDark, flexShrink: 0, marginTop: '3px' }} strokeWidth={1.5} />
+          <div style={{ fontSize: '1rem', lineHeight: 1.6, color: COLORS.ink }}>
             <strong style={{ color: COLORS.ink }}>For the most useful report, be detailed.</strong>
             <p style={{ marginTop: '0.5rem', color: COLORS.inkLight }}>
               The quality of your insights depends on the depth of context you provide. When the assessment asks about your current symptoms, medications and supplements, past illnesses, surgeries, or chronic issues — write thoroughly rather than briefly. Mention dosages, durations, what changed and when, what you've tried before. Specifics turn generic patterns into personalized findings.
@@ -877,10 +903,10 @@ function IntroScreen({ onStart }) {
         </div>
       </div>
 
-      <div style={{ background: COLORS.paper, border: `1px solid ${COLORS.rule}`, padding: '1.5rem', marginBottom: '1rem' }}>
+      <div style={{ background: COLORS.paper, border: `1px solid ${COLORS.rule}`, padding: '1.75rem', marginBottom: '1rem' }}>
         <div className="flex gap-3">
-          <Compass size={18} style={{ color: COLORS.accent, flexShrink: 0, marginTop: '2px' }} strokeWidth={1.5} />
-          <div style={{ fontSize: '0.9rem', lineHeight: 1.6, color: COLORS.inkLight }}>
+          <Compass size={20} style={{ color: COLORS.accent, flexShrink: 0, marginTop: '3px' }} strokeWidth={1.5} />
+          <div style={{ fontSize: '0.95rem', lineHeight: 1.6, color: COLORS.inkLight }}>
             <strong style={{ color: COLORS.ink }}>Your data stays on your device.</strong>
             <ul style={{ marginTop: '0.5rem', paddingLeft: '1.25rem', listStyle: 'none' }}>
               <li style={{ marginBottom: '0.4rem', position: 'relative', paddingLeft: '1rem' }}>
@@ -897,17 +923,17 @@ function IntroScreen({ onStart }) {
               </li>
               <li style={{ position: 'relative', paddingLeft: '1rem' }}>
                 <span style={{ position: 'absolute', left: 0, color: COLORS.accent }}>—</span>
-                Refresh or close the tab and everything is gone. The report you download is yours alone.
+                If you choose the AI analysis, your answers (without your name) are sent to Anthropic for that single request. We do not store them.
               </li>
             </ul>
           </div>
         </div>
       </div>
 
-      <div style={{ background: COLORS.paper, border: `1px solid ${COLORS.rule}`, padding: '1.5rem', marginBottom: '3rem' }}>
+      <div style={{ background: COLORS.paper, border: `1px solid ${COLORS.rule}`, padding: '1.75rem', marginBottom: '3rem' }}>
         <div className="flex gap-3">
-          <AlertCircle size={18} style={{ color: COLORS.accent, flexShrink: 0, marginTop: '2px' }} strokeWidth={1.5} />
-          <p style={{ fontSize: '0.9rem', lineHeight: 1.6, color: COLORS.inkLight }}>
+          <AlertCircle size={20} style={{ color: COLORS.accent, flexShrink: 0, marginTop: '3px' }} strokeWidth={1.5} />
+          <p style={{ fontSize: '0.95rem', lineHeight: 1.6, color: COLORS.inkLight }}>
             <strong style={{ color: COLORS.ink }}>This is not medical advice.</strong> The output is a self-reflection document to help organize your thoughts and prepare for conversations with qualified healthcare providers. It does not diagnose, treat, or replace professional medical care.
           </p>
         </div>
@@ -916,7 +942,7 @@ function IntroScreen({ onStart }) {
       <button
         onClick={onStart}
         className="group inline-flex items-center gap-3 px-8 py-4 transition-all duration-300 hover:gap-5"
-        style={{ background: COLORS.ink, color: COLORS.bg, fontFamily: 'Cormorant Garamond, Georgia, serif', fontSize: '1.1rem', letterSpacing: '0.05em' }}
+        style={{ background: COLORS.ink, color: COLORS.bg, fontFamily: 'Cormorant Garamond, Georgia, serif', fontSize: '1.15rem', letterSpacing: '0.05em' }}
       >
         Begin Assessment
         <ChevronRight size={18} strokeWidth={1.5} />
@@ -925,28 +951,56 @@ function IntroScreen({ onStart }) {
   );
 }
 
-function SectionHeader({ eyebrow, title, subtitle }) {
+function SectionHeader({ eyebrow, title, subtitle, sectionKey }) {
+  const palette = sectionKey ? SECTION_PALETTE[sectionKey] : null;
+  const eyebrowColor = palette ? palette.eyebrow : COLORS.accent;
   return (
-    <div className="mb-12" style={{ fontFamily: 'Cormorant Garamond, Georgia, serif' }}>
-      <p style={{ fontSize: '0.75rem', letterSpacing: '0.25em', textTransform: 'uppercase', color: COLORS.accent, marginBottom: '1rem' }}>
+    <div className="mb-10" style={{ fontFamily: 'Cormorant Garamond, Georgia, serif' }}>
+      <p style={{ fontSize: '0.78rem', letterSpacing: '0.25em', textTransform: 'uppercase', color: eyebrowColor, marginBottom: '1rem', fontWeight: 500 }}>
         {eyebrow}
       </p>
-      <h2 style={{ fontSize: 'clamp(2rem, 4vw, 2.75rem)', lineHeight: 1.1, fontWeight: 400, color: COLORS.ink, marginBottom: subtitle ? '0.75rem' : 0, letterSpacing: '-0.01em' }}>
+      <h2 style={{ fontSize: 'clamp(2.1rem, 4.2vw, 2.9rem)', lineHeight: 1.1, fontWeight: 400, color: COLORS.ink, marginBottom: subtitle ? '0.75rem' : 0, letterSpacing: '-0.01em' }}>
         {title}
       </h2>
       {subtitle && (
-        <p style={{ fontSize: '1.05rem', color: COLORS.inkLight, lineHeight: 1.6 }}>
+        <p style={{ fontSize: '1.1rem', color: COLORS.inkLight, lineHeight: 1.6 }}>
           {subtitle}
         </p>
       )}
+      {palette && (
+        <div style={{ marginTop: '1.25rem', width: '60px', height: '3px', background: palette.eyebrow, borderRadius: '2px' }} />
+      )}
+    </div>
+  );
+}
+
+// Phase 3.5 — wraps each question in a colored card with left accent rule
+function QuestionCard({ children, sectionKey }) {
+  const palette = sectionKey ? SECTION_PALETTE[sectionKey] : null;
+  const cardBg = palette ? palette.card : COLORS.paper;
+  const accent = palette ? palette.eyebrow : COLORS.accent;
+  return (
+    <div style={{
+      background: cardBg,
+      border: `1px solid ${COLORS.rule}`,
+      padding: '1.5rem 1.75rem 0.5rem 1.75rem',
+      marginBottom: '1rem',
+      borderRadius: '3px',
+      position: 'relative',
+      overflow: 'hidden',
+    }}>
+      <div style={{
+        position: 'absolute', left: 0, top: 0, bottom: 0, width: '3px', background: accent,
+      }} />
+      {children}
     </div>
   );
 }
 
 function TextField({ label, value, onChange, multiline, type = 'text' }) {
   return (
-    <div className="mb-8">
-      <label style={{ fontFamily: 'Cormorant Garamond, Georgia, serif', fontSize: '1.15rem', fontWeight: 500, color: COLORS.ink, display: 'block', marginBottom: '0.75rem', lineHeight: 1.4 }}>
+    <div className="mb-6">
+      <label style={{ fontFamily: 'Cormorant Garamond, Georgia, serif', fontSize: '1.2rem', fontWeight: 500, color: COLORS.ink, display: 'block', marginBottom: '0.75rem', lineHeight: 1.4 }}>
         {label}
       </label>
       {multiline ? (
@@ -954,7 +1008,7 @@ function TextField({ label, value, onChange, multiline, type = 'text' }) {
           value={value || ''}
           onChange={e => onChange(e.target.value)}
           rows={3}
-          style={{ width: '100%', padding: '0.75rem 0', background: 'transparent', border: 'none', borderBottom: `1px solid ${COLORS.rule}`, fontFamily: 'Cormorant Garamond, Georgia, serif', fontSize: '1.05rem', color: COLORS.ink, outline: 'none', resize: 'vertical', transition: 'border-color 0.2s' }}
+          style={{ width: '100%', padding: '0.75rem 0', background: 'transparent', border: 'none', borderBottom: `1px solid ${COLORS.rule}`, fontFamily: 'Cormorant Garamond, Georgia, serif', fontSize: '1.1rem', color: COLORS.ink, outline: 'none', resize: 'vertical', transition: 'border-color 0.2s' }}
           onFocus={e => e.target.style.borderBottomColor = COLORS.accent}
           onBlur={e => e.target.style.borderBottomColor = COLORS.rule}
         />
@@ -963,7 +1017,7 @@ function TextField({ label, value, onChange, multiline, type = 'text' }) {
           type={type}
           value={value || ''}
           onChange={e => onChange(e.target.value)}
-          style={{ width: '100%', padding: '0.75rem 0', background: 'transparent', border: 'none', borderBottom: `1px solid ${COLORS.rule}`, fontFamily: 'Cormorant Garamond, Georgia, serif', fontSize: '1.05rem', color: COLORS.ink, outline: 'none', transition: 'border-color 0.2s' }}
+          style={{ width: '100%', padding: '0.75rem 0', background: 'transparent', border: 'none', borderBottom: `1px solid ${COLORS.rule}`, fontFamily: 'Cormorant Garamond, Georgia, serif', fontSize: '1.1rem', color: COLORS.ink, outline: 'none', transition: 'border-color 0.2s' }}
           onFocus={e => e.target.style.borderBottomColor = COLORS.accent}
           onBlur={e => e.target.style.borderBottomColor = COLORS.rule}
         />
@@ -974,8 +1028,8 @@ function TextField({ label, value, onChange, multiline, type = 'text' }) {
 
 function SelectField({ label, options, value, onChange }) {
   return (
-    <div className="mb-10">
-      <label style={{ fontFamily: 'Cormorant Garamond, Georgia, serif', fontSize: '1.15rem', fontWeight: 500, color: COLORS.ink, display: 'block', marginBottom: '1rem', lineHeight: 1.4 }}>
+    <div className="mb-6">
+      <label style={{ fontFamily: 'Cormorant Garamond, Georgia, serif', fontSize: '1.2rem', fontWeight: 500, color: COLORS.ink, display: 'block', marginBottom: '1rem', lineHeight: 1.4 }}>
         {label}
       </label>
       <div className="flex flex-wrap gap-2">
@@ -985,7 +1039,7 @@ function SelectField({ label, options, value, onChange }) {
             <button
               key={opt}
               onClick={() => onChange(opt)}
-              style={{ padding: '0.5rem 1rem', background: selected ? COLORS.ink : 'transparent', color: selected ? COLORS.bg : COLORS.ink, border: `1px solid ${selected ? COLORS.ink : COLORS.rule}`, fontFamily: 'Cormorant Garamond, Georgia, serif', fontSize: '0.95rem', cursor: 'pointer', transition: 'all 0.2s' }}
+              style={{ padding: '0.55rem 1rem', background: selected ? COLORS.ink : 'rgba(255,255,255,0.5)', color: selected ? COLORS.bg : COLORS.ink, border: `1px solid ${selected ? COLORS.ink : COLORS.rule}`, fontFamily: 'Cormorant Garamond, Georgia, serif', fontSize: '1rem', cursor: 'pointer', transition: 'all 0.2s', borderRadius: '2px' }}
               onMouseEnter={e => { if (!selected) e.currentTarget.style.borderColor = COLORS.accent; }}
               onMouseLeave={e => { if (!selected) e.currentTarget.style.borderColor = COLORS.rule; }}
             >
@@ -1004,8 +1058,8 @@ function MultiSelectField({ label, options, value = [], onChange }) {
     else onChange([...value, opt]);
   };
   return (
-    <div className="mb-10">
-      <label style={{ fontFamily: 'Cormorant Garamond, Georgia, serif', fontSize: '1.15rem', fontWeight: 500, color: COLORS.ink, display: 'block', marginBottom: '1rem', lineHeight: 1.4 }}>
+    <div className="mb-6">
+      <label style={{ fontFamily: 'Cormorant Garamond, Georgia, serif', fontSize: '1.2rem', fontWeight: 500, color: COLORS.ink, display: 'block', marginBottom: '1rem', lineHeight: 1.4 }}>
         {label}
       </label>
       <div className="flex flex-wrap gap-2">
@@ -1015,7 +1069,7 @@ function MultiSelectField({ label, options, value = [], onChange }) {
             <button
               key={opt}
               onClick={() => toggle(opt)}
-              style={{ padding: '0.5rem 1rem', background: selected ? COLORS.ink : 'transparent', color: selected ? COLORS.bg : COLORS.ink, border: `1px solid ${selected ? COLORS.ink : COLORS.rule}`, fontFamily: 'Cormorant Garamond, Georgia, serif', fontSize: '0.95rem', cursor: 'pointer', transition: 'all 0.2s' }}
+              style={{ padding: '0.55rem 1rem', background: selected ? COLORS.ink : 'rgba(255,255,255,0.5)', color: selected ? COLORS.bg : COLORS.ink, border: `1px solid ${selected ? COLORS.ink : COLORS.rule}`, fontFamily: 'Cormorant Garamond, Georgia, serif', fontSize: '1rem', cursor: 'pointer', transition: 'all 0.2s', borderRadius: '2px' }}
             >
               {opt}
             </button>
@@ -1028,9 +1082,9 @@ function MultiSelectField({ label, options, value = [], onChange }) {
 
 function YesNoField({ label, value, onChange }) {
   return (
-    <div className="mb-6" style={{ paddingBottom: '1rem', borderBottom: `1px solid ${COLORS.rule}` }}>
+    <div className="mb-4" style={{ paddingBottom: '1rem', borderBottom: `1px solid ${COLORS.rule}` }}>
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-        <label style={{ fontFamily: 'Cormorant Garamond, Georgia, serif', fontSize: '1.05rem', color: COLORS.ink, lineHeight: 1.5, flex: 1 }}>
+        <label style={{ fontFamily: 'Cormorant Garamond, Georgia, serif', fontSize: '1.1rem', color: COLORS.ink, lineHeight: 1.5, flex: 1 }}>
           {label}
         </label>
         <div className="flex gap-2">
@@ -1040,7 +1094,7 @@ function YesNoField({ label, value, onChange }) {
               <button
                 key={opt}
                 onClick={() => onChange(opt)}
-                style={{ padding: '0.4rem 1.25rem', background: selected ? COLORS.ink : 'transparent', color: selected ? COLORS.bg : COLORS.ink, border: `1px solid ${selected ? COLORS.ink : COLORS.rule}`, fontFamily: 'Cormorant Garamond, Georgia, serif', fontSize: '0.95rem', cursor: 'pointer', transition: 'all 0.2s', minWidth: '4rem' }}
+                style={{ padding: '0.45rem 1.25rem', background: selected ? COLORS.ink : 'rgba(255,255,255,0.5)', color: selected ? COLORS.bg : COLORS.ink, border: `1px solid ${selected ? COLORS.ink : COLORS.rule}`, fontFamily: 'Cormorant Garamond, Georgia, serif', fontSize: '1rem', cursor: 'pointer', transition: 'all 0.2s', minWidth: '4rem', borderRadius: '2px' }}
               >
                 {opt}
               </button>
@@ -1052,12 +1106,14 @@ function YesNoField({ label, value, onChange }) {
   );
 }
 
-function ScaleQuestion({ question, value, onChange, index }) {
+function ScaleQuestion({ question, value, onChange, index, sectionKey }) {
   const labels = ['Never', 'Rarely', 'Sometimes', 'Often', 'Always'];
+  const palette = sectionKey ? SECTION_PALETTE[sectionKey] : null;
+  const accent = palette ? palette.eyebrow : COLORS.accent;
   return (
-    <div style={{ borderTop: index > 0 ? `1px solid ${COLORS.rule}` : 'none', paddingTop: index > 0 ? '1.75rem' : 0, paddingBottom: '1.75rem' }}>
-      <p style={{ fontFamily: 'Cormorant Garamond, Georgia, serif', fontSize: '1.05rem', color: COLORS.ink, marginBottom: '1rem', lineHeight: 1.5 }}>
-        <span style={{ color: COLORS.accent, marginRight: '0.5rem', fontVariantNumeric: 'tabular-nums' }}>{String(index + 1).padStart(2, '0')}</span>
+    <div style={{ borderTop: index > 0 ? `1px solid ${COLORS.rule}` : 'none', paddingTop: index > 0 ? '1.5rem' : 0, paddingBottom: '1.5rem' }}>
+      <p style={{ fontFamily: 'Cormorant Garamond, Georgia, serif', fontSize: '1.1rem', color: COLORS.ink, marginBottom: '1rem', lineHeight: 1.5 }}>
+        <span style={{ color: accent, marginRight: '0.5rem', fontVariantNumeric: 'tabular-nums', fontWeight: 600 }}>{String(index + 1).padStart(2, '0')}</span>
         {question}
       </p>
       <div className="flex flex-wrap gap-1.5">
@@ -1067,7 +1123,7 @@ function ScaleQuestion({ question, value, onChange, index }) {
             <button
               key={i}
               onClick={() => onChange(i)}
-              style={{ flex: '1 1 auto', minWidth: '5rem', padding: '0.625rem 0.5rem', background: selected ? COLORS.accent : 'transparent', color: selected ? COLORS.paper : COLORS.inkLight, border: `1px solid ${selected ? COLORS.accent : COLORS.rule}`, fontFamily: 'Cormorant Garamond, Georgia, serif', fontSize: '0.85rem', letterSpacing: '0.05em', cursor: 'pointer', transition: 'all 0.2s' }}
+              style={{ flex: '1 1 auto', minWidth: '5rem', padding: '0.65rem 0.5rem', background: selected ? accent : 'rgba(255,255,255,0.5)', color: selected ? COLORS.paper : COLORS.inkLight, border: `1px solid ${selected ? accent : COLORS.rule}`, fontFamily: 'Cormorant Garamond, Georgia, serif', fontSize: '0.9rem', letterSpacing: '0.05em', cursor: 'pointer', transition: 'all 0.2s', borderRadius: '2px' }}
             >
               {label}
             </button>
@@ -1085,7 +1141,7 @@ function NavButtons({ onBack, onNext, nextLabel = 'Continue', canProceed = true 
         onClick={onBack}
         disabled={!onBack}
         className="inline-flex items-center gap-2 transition-opacity"
-        style={{ fontFamily: 'Cormorant Garamond, Georgia, serif', fontSize: '1rem', color: COLORS.inkLight, opacity: onBack ? 1 : 0.3, cursor: onBack ? 'pointer' : 'default', background: 'none', border: 'none' }}
+        style={{ fontFamily: 'Cormorant Garamond, Georgia, serif', fontSize: '1.05rem', color: COLORS.inkLight, opacity: onBack ? 1 : 0.3, cursor: onBack ? 'pointer' : 'default', background: 'none', border: 'none' }}
       >
         <ChevronLeft size={16} strokeWidth={1.5} />
         Back
@@ -1094,7 +1150,7 @@ function NavButtons({ onBack, onNext, nextLabel = 'Continue', canProceed = true 
         onClick={onNext}
         disabled={!canProceed}
         className="inline-flex items-center gap-3 px-6 py-3 transition-all duration-200 hover:gap-4"
-        style={{ background: canProceed ? COLORS.ink : COLORS.rule, color: COLORS.bg, fontFamily: 'Cormorant Garamond, Georgia, serif', fontSize: '1rem', letterSpacing: '0.05em', cursor: canProceed ? 'pointer' : 'not-allowed', border: 'none' }}
+        style={{ background: canProceed ? COLORS.ink : COLORS.rule, color: COLORS.bg, fontFamily: 'Cormorant Garamond, Georgia, serif', fontSize: '1.05rem', letterSpacing: '0.05em', cursor: canProceed ? 'pointer' : 'not-allowed', border: 'none' }}
       >
         {nextLabel}
         <ChevronRight size={16} strokeWidth={1.5} />
@@ -1102,6 +1158,7 @@ function NavButtons({ onBack, onNext, nextLabel = 'Continue', canProceed = true 
     </div>
   );
 }
+
 function TurnstileWidget({ onVerify, onError, theme = 'light' }) {
   const widgetIdRef = useRef(null);
   const containerRef = useRef(null);
@@ -1145,54 +1202,6 @@ function TurnstileWidget({ onVerify, onError, theme = 'light' }) {
   return <div ref={containerRef} style={{ minHeight: 65 }} />;
 }
 
-function SimpleMarkdown({ text }) {
-  if (!text) return null;
-  const lines = text.split('\n');
-  const elements = [];
-  let key = 0;
-
-  lines.forEach((line) => {
-    const trimmed = line.trim();
-    if (!trimmed) { elements.push(<div key={key++} style={{ height: '0.6em' }} />); return; }
-    if (trimmed.startsWith('### ')) {
-      elements.push(
-        <h4 key={key++} style={{ fontFamily: 'Cormorant Garamond, Georgia, serif', fontSize: '1.2rem', fontWeight: 600, color: COLORS.ink, marginTop: '1.5em', marginBottom: '0.5em' }}>
-          {trimmed.slice(4)}
-        </h4>
-      );
-    } else if (trimmed.startsWith('## ')) {
-      elements.push(
-        <h3 key={key++} style={{ fontFamily: 'Cormorant Garamond, Georgia, serif', fontSize: '1.55rem', fontWeight: 500, color: COLORS.ink, marginTop: '2em', marginBottom: '0.75em', borderBottom: `1px solid ${COLORS.rule}`, paddingBottom: '0.5em' }}>
-          {trimmed.slice(3)}
-        </h3>
-      );
-    } else if (trimmed.startsWith('# ')) {
-      elements.push(
-        <h2 key={key++} style={{ fontFamily: 'Cormorant Garamond, Georgia, serif', fontSize: '1.85rem', fontWeight: 500, color: COLORS.ink, marginTop: '0.5em', marginBottom: '0.75em' }}>
-          {trimmed.slice(2)}
-        </h2>
-      );
-    } else if (trimmed === '---') {
-      elements.push(<hr key={key++} style={{ border: 'none', borderTop: `1px solid ${COLORS.rule}`, margin: '1.5em 0' }} />);
-    } else if (/^- /.test(trimmed) || /^\* /.test(trimmed)) {
-      elements.push(
-        <p key={key++} style={{ fontFamily: 'Cormorant Garamond, Georgia, serif', fontSize: '1.05rem', color: COLORS.inkLight, lineHeight: 1.7, marginBottom: '0.4em', paddingLeft: '1.25em', position: 'relative' }}>
-          <span style={{ position: 'absolute', left: 0, color: COLORS.accent }}>—</span>
-          {renderInline(trimmed.slice(2), key)}
-        </p>
-      );
-    } else {
-      elements.push(
-        <p key={key++} style={{ fontFamily: 'Cormorant Garamond, Georgia, serif', fontSize: '1.05rem', color: COLORS.inkLight, lineHeight: 1.75, marginBottom: '0.85em' }}>
-          {renderInline(trimmed, key)}
-        </p>
-      );
-    }
-  });
-
-  return <>{elements}</>;
-}
-
 function renderInline(text, baseKey) {
   const parts = [];
   let remaining = text;
@@ -1220,6 +1229,54 @@ function renderInline(text, baseKey) {
   return parts;
 }
 
+function SimpleMarkdown({ text }) {
+  if (!text) return null;
+  const lines = text.split('\n');
+  const elements = [];
+  let key = 0;
+
+  lines.forEach((line) => {
+    const trimmed = line.trim();
+    if (!trimmed) { elements.push(<div key={key++} style={{ height: '0.6em' }} />); return; }
+    if (trimmed.startsWith('### ')) {
+      elements.push(
+        <h4 key={key++} style={{ fontFamily: 'Cormorant Garamond, Georgia, serif', fontSize: '1.3rem', fontWeight: 600, color: COLORS.ink, marginTop: '1.5em', marginBottom: '0.5em' }}>
+          {trimmed.slice(4)}
+        </h4>
+      );
+    } else if (trimmed.startsWith('## ')) {
+      elements.push(
+        <h3 key={key++} style={{ fontFamily: 'Cormorant Garamond, Georgia, serif', fontSize: '1.65rem', fontWeight: 500, color: COLORS.ink, marginTop: '2em', marginBottom: '0.75em', borderBottom: `1px solid ${COLORS.rule}`, paddingBottom: '0.5em' }}>
+          {trimmed.slice(3)}
+        </h3>
+      );
+    } else if (trimmed.startsWith('# ')) {
+      elements.push(
+        <h2 key={key++} style={{ fontFamily: 'Cormorant Garamond, Georgia, serif', fontSize: '1.95rem', fontWeight: 500, color: COLORS.ink, marginTop: '0.5em', marginBottom: '0.75em' }}>
+          {trimmed.slice(2)}
+        </h2>
+      );
+    } else if (trimmed === '---') {
+      elements.push(<hr key={key++} style={{ border: 'none', borderTop: `1px solid ${COLORS.rule}`, margin: '1.5em 0' }} />);
+    } else if (/^- /.test(trimmed) || /^\* /.test(trimmed)) {
+      elements.push(
+        <p key={key++} style={{ fontFamily: 'Cormorant Garamond, Georgia, serif', fontSize: '1.1rem', color: COLORS.inkLight, lineHeight: 1.7, marginBottom: '0.4em', paddingLeft: '1.25em', position: 'relative' }}>
+          <span style={{ position: 'absolute', left: 0, color: COLORS.accent }}>—</span>
+          {renderInline(trimmed.slice(2), key)}
+        </p>
+      );
+    } else {
+      elements.push(
+        <p key={key++} style={{ fontFamily: 'Cormorant Garamond, Georgia, serif', fontSize: '1.1rem', color: COLORS.inkLight, lineHeight: 1.75, marginBottom: '0.85em' }}>
+          {renderInline(trimmed, key)}
+        </p>
+      );
+    }
+  });
+
+  return <>{elements}</>;
+}
+
 // ==========================================================================
 // SECTION SCREENS
 // ==========================================================================
@@ -1228,11 +1285,11 @@ function PersonalScreen({ data, update, onNext, onBack }) {
   const d = data.personal || {};
   return (
     <div className="max-w-2xl mx-auto px-6 py-12">
-      <SectionHeader eyebrow="Section 01 of 14" title="About you" subtitle="Basic context to ground the assessment." />
-      <TextField label="Name (optional)" value={d.name} onChange={v => update('personal.name', v)} />
-      <TextField label="Age" type="number" value={d.age} onChange={v => update('personal.age', v)} />
-      <SelectField label="Gender" options={['Male', 'Female', 'Other / Prefer not to say']} value={d.gender} onChange={v => update('personal.gender', v)} />
-      <TextField label="Profession (optional)" value={d.profession} onChange={v => update('personal.profession', v)} />
+      <SectionHeader eyebrow="Section 01 of 14" title="About you" subtitle="Basic context to ground the assessment." sectionKey="personal" />
+      <QuestionCard sectionKey="personal"><TextField label="Name (optional)" value={d.name} onChange={v => update('personal.name', v)} /></QuestionCard>
+      <QuestionCard sectionKey="personal"><TextField label="Age" type="number" value={d.age} onChange={v => update('personal.age', v)} /></QuestionCard>
+      <QuestionCard sectionKey="personal"><SelectField label="Gender" options={['Male', 'Female', 'Other / Prefer not to say']} value={d.gender} onChange={v => update('personal.gender', v)} /></QuestionCard>
+      <QuestionCard sectionKey="personal"><TextField label="Profession (optional)" value={d.profession} onChange={v => update('personal.profession', v)} /></QuestionCard>
       <NavButtons onBack={onBack} onNext={onNext} canProceed={!!d.age && !!d.gender} />
     </div>
   );
@@ -1251,18 +1308,15 @@ function GenericFormScreen({ sectionKey, sectionNumber, title, subtitle, questio
 
   return (
     <div className="max-w-2xl mx-auto px-6 py-12">
-      <SectionHeader eyebrow={`Section ${String(sectionNumber).padStart(2, '0')} of 14`} title={title} subtitle={subtitle} />
-      {Object.entries(questions).map(([key, q], idx) => {
-        const wrapper = (content) => (
-          <div key={key} style={{ paddingTop: idx === 0 ? 0 : '1.5rem', paddingBottom: '0.5rem', borderTop: idx === 0 ? 'none' : `1px solid ${COLORS.rule}`, marginBottom: '1.5rem' }}>
-            {content}
-          </div>
-        );
+      <SectionHeader eyebrow={`Section ${String(sectionNumber).padStart(2, '0')} of 14`} title={title} subtitle={subtitle} sectionKey={sectionKey} />
+      {Object.entries(questions).map(([key, q]) => {
         const onChange = v => update(`${sectionKey}.${key}`, v);
-        if (q.type === 'longtext') return wrapper(<TextField label={q.label} value={sectionData[key]} multiline onChange={onChange} />);
-        if (q.type === 'select') return wrapper(<SelectField label={q.label} options={q.options} value={sectionData[key]} onChange={onChange} />);
-        if (q.type === 'multiselect') return wrapper(<MultiSelectField label={q.label} options={q.options} value={sectionData[key]} onChange={onChange} />);
-        return null;
+        let inner = null;
+        if (q.type === 'longtext') inner = <TextField label={q.label} value={sectionData[key]} multiline onChange={onChange} />;
+        else if (q.type === 'select') inner = <SelectField label={q.label} options={q.options} value={sectionData[key]} onChange={onChange} />;
+        else if (q.type === 'multiselect') inner = <MultiSelectField label={q.label} options={q.options} value={sectionData[key]} onChange={onChange} />;
+        if (!inner) return null;
+        return <QuestionCard key={key} sectionKey={sectionKey}>{inner}</QuestionCard>;
       })}
       <NavButtons onBack={onBack} onNext={onNext} canProceed={canProceed} nextLabel={isLastSection ? 'Generate Report' : 'Continue'} />
     </div>
@@ -1273,19 +1327,18 @@ function VitalsScreen({ data, update, onNext, onBack }) {
   const v = data.vitals || {};
   return (
     <div className="max-w-2xl mx-auto px-6 py-12">
-      <SectionHeader eyebrow="Section 03 of 14" title="Vital statistics" subtitle="Approximate numbers are fine. Skip what you don't know." />
-      <TextField label="Blood pressure (e.g., 120/80)" value={v.bp} onChange={x => update('vitals.bp', x)} />
-      <TextField label="Resting heart rate (bpm)" type="number" value={v.hr} onChange={x => update('vitals.hr', x)} />
-      <TextField label="Weight (kg)" type="number" value={v.weight} onChange={x => update('vitals.weight', x)} />
-      <TextField label="Height (cm)" type="number" value={v.height} onChange={x => update('vitals.height', x)} />
-      <TextField label="Waist circumference (cm)" type="number" value={v.waist} onChange={x => update('vitals.waist', x)} />
-      <TextField label="Hip circumference (cm)" type="number" value={v.hip} onChange={x => update('vitals.hip', x)} />
+      <SectionHeader eyebrow="Section 03 of 14" title="Vital statistics" subtitle="Approximate numbers are fine. Skip what you don't know." sectionKey="vitals" />
+      <QuestionCard sectionKey="vitals"><TextField label="Blood pressure (e.g., 120/80)" value={v.bp} onChange={x => update('vitals.bp', x)} /></QuestionCard>
+      <QuestionCard sectionKey="vitals"><TextField label="Resting heart rate (bpm)" type="number" value={v.hr} onChange={x => update('vitals.hr', x)} /></QuestionCard>
+      <QuestionCard sectionKey="vitals"><TextField label="Weight (kg)" type="number" value={v.weight} onChange={x => update('vitals.weight', x)} /></QuestionCard>
+      <QuestionCard sectionKey="vitals"><TextField label="Height (cm)" type="number" value={v.height} onChange={x => update('vitals.height', x)} /></QuestionCard>
+      <QuestionCard sectionKey="vitals"><TextField label="Waist circumference (cm)" type="number" value={v.waist} onChange={x => update('vitals.waist', x)} /></QuestionCard>
+      <QuestionCard sectionKey="vitals"><TextField label="Hip circumference (cm)" type="number" value={v.hip} onChange={x => update('vitals.hip', x)} /></QuestionCard>
       <NavButtons onBack={onBack} onNext={onNext} />
     </div>
   );
 }
 
-// Combined Food Diary screen — weekday + weekend in one screen with internal sub-headers
 function FoodDiaryScreen({ data, update, onNext, onBack }) {
   const wd = data.foodDiaryWeekday || {};
   const we = data.foodDiaryWeekend || {};
@@ -1293,30 +1346,31 @@ function FoodDiaryScreen({ data, update, onNext, onBack }) {
   const requiredWeekend = ['weekendBreakfast', 'weekendLunch', 'weekendDinner'];
   const allReq = [...requiredWeekday.map(k => wd[k]), ...requiredWeekend.map(k => we[k])];
   const canProceed = allReq.every(v => v && v.trim && v.trim().length > 0);
+  const palette = SECTION_PALETTE.foodDiary;
 
-  const renderField = (sectionKey, key, q, idx) => (
-    <div key={key} style={{ paddingTop: idx === 0 ? 0 : '1.5rem', paddingBottom: '0.5rem', borderTop: idx === 0 ? 'none' : `1px solid ${COLORS.rule}`, marginBottom: '1.5rem' }}>
+  const renderField = (sectionKey, key, q) => (
+    <QuestionCard key={key} sectionKey="foodDiary">
       <TextField label={q.label} value={data[sectionKey]?.[key]} multiline onChange={v => update(`${sectionKey}.${key}`, v)} />
-    </div>
+    </QuestionCard>
   );
 
   return (
     <div className="max-w-2xl mx-auto px-6 py-12">
-      <SectionHeader eyebrow="Section 06 of 14" title="Food diary" subtitle="Walk through a typical weekday and a typical weekend day. Times matter — note when, not just what." />
+      <SectionHeader eyebrow="Section 06 of 14" title="Food diary" subtitle="Walk through a typical weekday and a typical weekend day. Times matter — note when, not just what." sectionKey="foodDiary" />
 
-      <div style={{ marginTop: '1rem', marginBottom: '2rem', paddingBottom: '0.5rem', borderBottom: `2px solid ${COLORS.accent}` }}>
-        <p style={{ fontFamily: 'Cormorant Garamond, Georgia, serif', fontSize: '0.8rem', letterSpacing: '0.2em', textTransform: 'uppercase', color: COLORS.accent }}>
+      <div style={{ marginTop: '1rem', marginBottom: '1.5rem', paddingBottom: '0.5rem', borderBottom: `2px solid ${palette.eyebrow}` }}>
+        <p style={{ fontFamily: 'Cormorant Garamond, Georgia, serif', fontSize: '0.82rem', letterSpacing: '0.2em', textTransform: 'uppercase', color: palette.eyebrow, fontWeight: 500 }}>
           Typical Weekday
         </p>
       </div>
-      {Object.entries(FOOD_DIARY_WEEKDAY).map(([key, q], i) => renderField('foodDiaryWeekday', key, q, i))}
+      {Object.entries(FOOD_DIARY_WEEKDAY).map(([key, q]) => renderField('foodDiaryWeekday', key, q))}
 
-      <div style={{ marginTop: '3rem', marginBottom: '2rem', paddingBottom: '0.5rem', borderBottom: `2px solid ${COLORS.accent}` }}>
-        <p style={{ fontFamily: 'Cormorant Garamond, Georgia, serif', fontSize: '0.8rem', letterSpacing: '0.2em', textTransform: 'uppercase', color: COLORS.accent }}>
+      <div style={{ marginTop: '2.5rem', marginBottom: '1.5rem', paddingBottom: '0.5rem', borderBottom: `2px solid ${palette.eyebrow}` }}>
+        <p style={{ fontFamily: 'Cormorant Garamond, Georgia, serif', fontSize: '0.82rem', letterSpacing: '0.2em', textTransform: 'uppercase', color: palette.eyebrow, fontWeight: 500 }}>
           Typical Weekend Day
         </p>
       </div>
-      {Object.entries(FOOD_DIARY_WEEKEND).map(([key, q], i) => renderField('foodDiaryWeekend', key, q, i))}
+      {Object.entries(FOOD_DIARY_WEEKEND).map(([key, q]) => renderField('foodDiaryWeekend', key, q))}
 
       <NavButtons onBack={onBack} onNext={onNext} canProceed={canProceed} />
     </div>
@@ -1330,19 +1384,19 @@ function EnergyScreen({ data, update, onNext, onBack }) {
 
   return (
     <div className="max-w-2xl mx-auto px-6 py-12">
-      <SectionHeader eyebrow="Section 09 of 14" title="Energy levels" subtitle="A quick yes/no scan of how energy moves through your day." />
-      {Object.entries(ENERGY_QUESTIONS).map(([key, q]) => {
-        const onChange = v => update(`energy.${key}`, v);
-        if (q.type === 'yesno') return <YesNoField key={key} label={q.label} value={en[key]} onChange={onChange} />;
-        if (q.type === 'select') {
-          return (
+      <SectionHeader eyebrow="Section 09 of 14" title="Energy levels" subtitle="A quick yes/no scan of how energy moves through your day." sectionKey="energy" />
+      <QuestionCard sectionKey="energy">
+        {Object.entries(ENERGY_QUESTIONS).map(([key, q]) => {
+          const onChange = v => update(`energy.${key}`, v);
+          if (q.type === 'yesno') return <YesNoField key={key} label={q.label} value={en[key]} onChange={onChange} />;
+          if (q.type === 'select') return (
             <div key={key} style={{ paddingTop: '1rem' }}>
               <SelectField label={q.label} options={q.options} value={en[key]} onChange={onChange} />
             </div>
           );
-        }
-        return null;
-      })}
+          return null;
+        })}
+      </QuestionCard>
       <NavButtons onBack={onBack} onNext={onNext} canProceed={canProceed} />
     </div>
   );
@@ -1355,23 +1409,26 @@ function ScanSectionScreen({ sectionKey, sectionNumber, data, update, onNext, on
 
   return (
     <div className="max-w-2xl mx-auto px-6 py-12">
-      <SectionHeader eyebrow={`Section ${String(sectionNumber).padStart(2, '0')} of 14`} title={section.title} subtitle={section.description} />
-      <p style={{ fontFamily: 'Cormorant Garamond, Georgia, serif', fontSize: '0.9rem', color: COLORS.inkLight, fontStyle: 'italic', marginBottom: '2rem', paddingBottom: '1rem', borderBottom: `1px solid ${COLORS.rule}` }}>
+      <SectionHeader eyebrow={`Section ${String(sectionNumber).padStart(2, '0')} of 14`} title={section.title} subtitle={section.description} sectionKey={sectionKey} />
+      <p style={{ fontFamily: 'Cormorant Garamond, Georgia, serif', fontSize: '1rem', color: COLORS.inkLight, fontStyle: 'italic', marginBottom: '1.5rem' }}>
         How often do these apply to you?
       </p>
-      {section.questions.map((q, i) => (
-        <ScaleQuestion
-          key={i}
-          index={i}
-          question={q}
-          value={answers[i]}
-          onChange={val => {
-            const newAnswers = [...answers];
-            newAnswers[i] = val;
-            update(sectionKey, newAnswers);
-          }}
-        />
-      ))}
+      <QuestionCard sectionKey={sectionKey}>
+        {section.questions.map((q, i) => (
+          <ScaleQuestion
+            key={i}
+            index={i}
+            question={q}
+            value={answers[i]}
+            sectionKey={sectionKey}
+            onChange={val => {
+              const newAnswers = [...answers];
+              newAnswers[i] = val;
+              update(sectionKey, newAnswers);
+            }}
+          />
+        ))}
+      </QuestionCard>
       <NavButtons onBack={onBack} onNext={onNext} canProceed={allAnswered} nextLabel={sectionNumber === 14 ? 'Generate Report' : 'Continue'} />
     </div>
   );
@@ -1384,10 +1441,10 @@ function ScanSectionScreen({ sectionKey, sectionNumber, data, update, onNext, on
 function ScoreBar({ label, score, max, level, color }) {
   const pct = (score / max) * 100;
   return (
-    <div className="mb-6">
+    <div className="mb-5">
       <div className="flex justify-between items-baseline mb-2" style={{ fontFamily: 'Cormorant Garamond, Georgia, serif' }}>
-        <span style={{ fontSize: '1.1rem', color: COLORS.ink }}>{label}</span>
-        <span style={{ fontSize: '0.9rem', color: COLORS.inkLight, fontVariantNumeric: 'tabular-nums' }}>
+        <span style={{ fontSize: '1.15rem', color: COLORS.ink }}>{label}</span>
+        <span style={{ fontSize: '0.95rem', color: COLORS.inkLight, fontVariantNumeric: 'tabular-nums' }}>
           {score}/{max} · <em style={{ color, fontStyle: 'italic' }}>{level}</em>
         </span>
       </div>
@@ -1417,7 +1474,7 @@ function ReportScreen({ data, onRestart }) {
   const runAi = async () => {
     setAiLoading(true);
     setAiError(null);
-    setAiAnalysis(''); // Start with empty string for streaming append
+    setAiAnalysis('');
     try {
       const body = { data };
       if (byokKey.trim()) body.apiKey = byokKey.trim();
@@ -1429,7 +1486,6 @@ function ReportScreen({ data, onRestart }) {
         body: JSON.stringify(body),
       });
 
-      // If non-2xx, the server returned JSON error before any streaming
       if (!res.ok) {
         const json = await res.json().catch(() => ({ error: `Request failed (${res.status})` }));
         setAiError(json.detail || json.error || 'Something went wrong');
@@ -1437,7 +1493,6 @@ function ReportScreen({ data, onRestart }) {
         return;
       }
 
-      // Stream reading
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
       let buffer = '';
@@ -1448,10 +1503,8 @@ function ReportScreen({ data, onRestart }) {
         const { done, value } = await reader.read();
         if (done) break;
         buffer += decoder.decode(value, { stream: true });
-
-        // Parse SSE events from buffer
         const parts = buffer.split('\n\n');
-        buffer = parts.pop(); // keep incomplete event in buffer
+        buffer = parts.pop();
 
         for (const part of parts) {
           const line = part.trim();
@@ -1464,11 +1517,9 @@ function ReportScreen({ data, onRestart }) {
               setAiAnalysis(accumulated);
             } else if (evt.type === 'error') {
               streamError = evt.message || 'Stream error';
-            } else if (evt.type === 'done') {
-              // Stream finished cleanly
             }
           } catch (parseErr) {
-            // Ignore unparseable chunks (shouldn't happen)
+            // ignore
           }
         }
       }
@@ -1513,8 +1564,8 @@ function ReportScreen({ data, onRestart }) {
     <div className="max-w-3xl mx-auto px-6 py-12">
       <SectionHeader eyebrow="Your Report" title="What your body is signaling" subtitle="A map of patterns based on your responses." />
 
-      <div style={{ background: COLORS.paper, border: `1px solid ${COLORS.rule}`, padding: '2rem', marginBottom: '3rem' }}>
-        <h3 style={{ fontFamily: 'Cormorant Garamond, Georgia, serif', fontSize: '1.5rem', color: COLORS.ink, marginBottom: '1.5rem', fontWeight: 500 }}>
+      <div style={{ background: COLORS.paper, border: `1px solid ${COLORS.rule}`, padding: '2rem', marginBottom: '3rem', borderRadius: '3px' }}>
+        <h3 style={{ fontFamily: 'Cormorant Garamond, Georgia, serif', fontSize: '1.6rem', color: COLORS.ink, marginBottom: '1.5rem', fontWeight: 500 }}>
           Score summary
         </h3>
         {Object.entries(analysis.scores).map(([key, s]) => (
@@ -1523,14 +1574,14 @@ function ReportScreen({ data, onRestart }) {
       </div>
 
       {!aiAnalysis && (
-        <div style={{ background: COLORS.highlight, border: `1px solid ${COLORS.rule}`, padding: '2rem', marginBottom: '3rem' }}>
+        <div style={{ background: COLORS.highlight, border: `1px solid ${COLORS.rule}`, padding: '2rem', marginBottom: '3rem', borderRadius: '3px' }}>
           <div className="flex gap-3 items-start mb-4">
-            <Sparkles size={20} style={{ color: COLORS.accentDark, flexShrink: 0, marginTop: '4px' }} strokeWidth={1.5} />
+            <Sparkles size={22} style={{ color: COLORS.accentDark, flexShrink: 0, marginTop: '4px' }} strokeWidth={1.5} />
             <div>
-              <h3 style={{ fontFamily: 'Cormorant Garamond, Georgia, serif', fontSize: '1.4rem', color: COLORS.ink, marginBottom: '0.5rem', fontWeight: 500 }}>
+              <h3 style={{ fontFamily: 'Cormorant Garamond, Georgia, serif', fontSize: '1.5rem', color: COLORS.ink, marginBottom: '0.5rem', fontWeight: 500 }}>
                 Want a deeper, personalized analysis?
               </h3>
-              <p style={{ fontFamily: 'Cormorant Garamond, Georgia, serif', fontSize: '1rem', color: COLORS.inkLight, lineHeight: 1.6 }}>
+              <p style={{ fontFamily: 'Cormorant Garamond, Georgia, serif', fontSize: '1.1rem', color: COLORS.inkLight, lineHeight: 1.6 }}>
                 The summary above uses pattern matching. For a much more thorough report that reads your specific answers, makes cross-system connections, and writes individualized recommendations, you can generate an AI-powered version. Takes about 30–60 seconds.
               </p>
             </div>
@@ -1540,7 +1591,7 @@ function ReportScreen({ data, onRestart }) {
             <button
               onClick={() => setAiMode(true)}
               className="inline-flex items-center gap-2 px-5 py-3 transition-all"
-              style={{ background: COLORS.ink, color: COLORS.bg, fontFamily: 'Cormorant Garamond, Georgia, serif', fontSize: '1rem', letterSpacing: '0.05em', cursor: 'pointer', border: 'none', marginLeft: '2rem' }}
+              style={{ background: COLORS.ink, color: COLORS.bg, fontFamily: 'Cormorant Garamond, Georgia, serif', fontSize: '1.05rem', letterSpacing: '0.05em', cursor: 'pointer', border: 'none', marginLeft: '2rem', borderRadius: '2px' }}
             >
               <Sparkles size={16} strokeWidth={1.5} />
               Generate AI Analysis
@@ -1551,8 +1602,8 @@ function ReportScreen({ data, onRestart }) {
             <div style={{ marginTop: '1.5rem', marginLeft: '2rem' }}>
               <div style={{ background: COLORS.paper, padding: '1rem', marginBottom: '1.5rem', border: `1px solid ${COLORS.rule}` }}>
                 <div className="flex gap-2 items-start">
-                  <Shield size={16} style={{ color: COLORS.accent, flexShrink: 0, marginTop: '3px' }} strokeWidth={1.5} />
-                  <div style={{ fontFamily: 'Cormorant Garamond, Georgia, serif', fontSize: '0.92rem', color: COLORS.inkLight, lineHeight: 1.55 }}>
+                  <Shield size={18} style={{ color: COLORS.accent, flexShrink: 0, marginTop: '3px' }} strokeWidth={1.5} />
+                  <div style={{ fontFamily: 'Cormorant Garamond, Georgia, serif', fontSize: '0.98rem', color: COLORS.inkLight, lineHeight: 1.55 }}>
                     <strong style={{ color: COLORS.ink }}>How AI analysis works.</strong> Your answers (without your name) are sent to Anthropic's Claude API for processing and returned as a personalized report. Nothing is stored on our end. Anthropic's terms commit to not training on API inputs.
                   </div>
                 </div>
@@ -1562,7 +1613,7 @@ function ReportScreen({ data, onRestart }) {
                 <button
                   onClick={() => setByokExpanded(!byokExpanded)}
                   className="inline-flex items-center gap-2 transition-opacity hover:opacity-70"
-                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: COLORS.accent, fontFamily: 'Cormorant Garamond, Georgia, serif', fontSize: '0.95rem', padding: 0 }}
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: COLORS.accent, fontFamily: 'Cormorant Garamond, Georgia, serif', fontSize: '1rem', padding: 0 }}
                 >
                   <Key size={14} strokeWidth={1.5} />
                   {byokExpanded ? 'Hide' : 'Use your own Anthropic API key'} {!byokExpanded && '(optional)'}
@@ -1576,10 +1627,10 @@ function ReportScreen({ data, onRestart }) {
                       placeholder="sk-ant-api03-..."
                       style={{
                         width: '100%', padding: '0.6rem 0.75rem', background: COLORS.paper, border: `1px solid ${COLORS.rule}`,
-                        fontFamily: 'monospace', fontSize: '0.85rem', color: COLORS.ink, outline: 'none',
+                        fontFamily: 'monospace', fontSize: '0.9rem', color: COLORS.ink, outline: 'none',
                       }}
                     />
-                    <p style={{ fontFamily: 'Cormorant Garamond, Georgia, serif', fontSize: '0.85rem', color: COLORS.inkLight, marginTop: '0.5rem', fontStyle: 'italic' }}>
+                    <p style={{ fontFamily: 'Cormorant Garamond, Georgia, serif', fontSize: '0.9rem', color: COLORS.inkLight, marginTop: '0.5rem', fontStyle: 'italic' }}>
                       Optional. If provided, your key is used for this report and you bypass our free-tier limits. Your key is sent only with this single request and is not stored.
                     </p>
                   </div>
@@ -1602,7 +1653,7 @@ function ReportScreen({ data, onRestart }) {
                   onChange={e => setAiConsent(e.target.checked)}
                   style={{ marginTop: '5px', accentColor: COLORS.accent }}
                 />
-                <span style={{ fontFamily: 'Cormorant Garamond, Georgia, serif', fontSize: '0.95rem', color: COLORS.inkLight, lineHeight: 1.5 }}>
+                <span style={{ fontFamily: 'Cormorant Garamond, Georgia, serif', fontSize: '1rem', color: COLORS.inkLight, lineHeight: 1.5 }}>
                   I understand my answers will be sent to Anthropic for AI analysis, and that this is not medical advice.
                 </span>
               </label>
@@ -1615,8 +1666,8 @@ function ReportScreen({ data, onRestart }) {
                   style={{
                     background: canSubmitAi ? COLORS.ink : COLORS.rule,
                     color: COLORS.bg, fontFamily: 'Cormorant Garamond, Georgia, serif',
-                    fontSize: '1rem', letterSpacing: '0.05em',
-                    cursor: canSubmitAi ? 'pointer' : 'not-allowed', border: 'none',
+                    fontSize: '1.05rem', letterSpacing: '0.05em',
+                    cursor: canSubmitAi ? 'pointer' : 'not-allowed', border: 'none', borderRadius: '2px',
                   }}
                 >
                   <Sparkles size={16} strokeWidth={1.5} />
@@ -1624,14 +1675,14 @@ function ReportScreen({ data, onRestart }) {
                 </button>
                 <button
                   onClick={() => { setAiMode(false); setAiConsent(false); setByokExpanded(false); setByokKey(''); setTurnstileToken(null); }}
-                  style={{ background: 'transparent', border: 'none', color: COLORS.inkLight, fontFamily: 'Cormorant Garamond, Georgia, serif', fontSize: '0.95rem', cursor: 'pointer', padding: '0.75rem 0.5rem' }}
+                  style={{ background: 'transparent', border: 'none', color: COLORS.inkLight, fontFamily: 'Cormorant Garamond, Georgia, serif', fontSize: '1rem', cursor: 'pointer', padding: '0.75rem 0.5rem' }}
                 >
                   Cancel
                 </button>
               </div>
 
               {aiError && (
-                <div style={{ marginTop: '1rem', padding: '0.85rem 1rem', background: '#FBE9E9', border: '1px solid #E5BFBF', color: '#8B3A3A', fontFamily: 'Cormorant Garamond, Georgia, serif', fontSize: '0.9rem' }}>
+                <div style={{ marginTop: '1rem', padding: '0.85rem 1rem', background: '#FBE9E9', border: '1px solid #E5BFBF', color: '#8B3A3A', fontFamily: 'Cormorant Garamond, Georgia, serif', fontSize: '0.95rem' }}>
                   {aiError}
                 </div>
               )}
@@ -1642,7 +1693,7 @@ function ReportScreen({ data, onRestart }) {
             <div style={{ marginTop: '1.5rem', marginLeft: '2rem' }}>
               <div className="flex items-center gap-3">
                 <Loader2 size={20} className="animate-spin" style={{ color: COLORS.accent }} strokeWidth={1.5} />
-                <p style={{ fontFamily: 'Cormorant Garamond, Georgia, serif', fontSize: '1rem', color: COLORS.inkLight, fontStyle: 'italic' }}>
+                <p style={{ fontFamily: 'Cormorant Garamond, Georgia, serif', fontSize: '1.05rem', color: COLORS.inkLight, fontStyle: 'italic' }}>
                   Claude is reading your answers and writing your report. This usually takes 30–60 seconds.
                 </p>
               </div>
@@ -1655,11 +1706,11 @@ function ReportScreen({ data, onRestart }) {
         <div className="mb-12">
           <div className="flex gap-3 items-center mb-6">
             <Sparkles size={22} style={{ color: COLORS.accent }} strokeWidth={1.5} />
-            <h3 style={{ fontFamily: 'Cormorant Garamond, Georgia, serif', fontSize: '1.75rem', color: COLORS.ink, fontWeight: 500 }}>
+            <h3 style={{ fontFamily: 'Cormorant Garamond, Georgia, serif', fontSize: '1.85rem', color: COLORS.ink, fontWeight: 500 }}>
               Personalized AI Analysis
             </h3>
           </div>
-          <div className="ai-analysis-content" style={{ fontFamily: 'Cormorant Garamond, Georgia, serif', fontSize: '1.05rem', color: COLORS.ink, lineHeight: 1.75 }}>
+          <div className="ai-analysis-content" style={{ fontFamily: 'Cormorant Garamond, Georgia, serif', fontSize: '1.1rem', color: COLORS.ink, lineHeight: 1.75 }}>
             <SimpleMarkdown text={aiAnalysis} />
           </div>
         </div>
@@ -1667,15 +1718,15 @@ function ReportScreen({ data, onRestart }) {
 
       {analysis.insights.length > 0 && (
         <div className="mb-12">
-          <h3 style={{ fontFamily: 'Cormorant Garamond, Georgia, serif', fontSize: aiAnalysis ? '1.5rem' : '1.75rem', color: COLORS.ink, marginBottom: '1.5rem', fontWeight: 500 }}>
+          <h3 style={{ fontFamily: 'Cormorant Garamond, Georgia, serif', fontSize: aiAnalysis ? '1.55rem' : '1.85rem', color: COLORS.ink, marginBottom: '1.5rem', fontWeight: 500 }}>
             {aiAnalysis ? 'Quick pattern detection' : 'What stands out'}
           </h3>
           {analysis.insights.map((insight, i) => (
             <div key={i} style={{ borderLeft: `2px solid ${COLORS.accent}`, paddingLeft: '1.5rem', marginBottom: '2rem' }}>
-              <h4 style={{ fontFamily: 'Cormorant Garamond, Georgia, serif', fontSize: '1.25rem', color: COLORS.ink, marginBottom: '0.5rem', fontWeight: 500 }}>
+              <h4 style={{ fontFamily: 'Cormorant Garamond, Georgia, serif', fontSize: '1.3rem', color: COLORS.ink, marginBottom: '0.5rem', fontWeight: 500 }}>
                 {insight.title}
               </h4>
-              <p style={{ fontFamily: 'Cormorant Garamond, Georgia, serif', fontSize: '1.05rem', color: COLORS.inkLight, lineHeight: 1.65 }}>
+              <p style={{ fontFamily: 'Cormorant Garamond, Georgia, serif', fontSize: '1.1rem', color: COLORS.inkLight, lineHeight: 1.65 }}>
                 {insight.body}
               </p>
             </div>
@@ -1684,12 +1735,12 @@ function ReportScreen({ data, onRestart }) {
       )}
 
       {analysis.flags.length > 0 && (
-        <div className="mb-12" style={{ background: COLORS.highlight, padding: '1.5rem' }}>
-          <h3 style={{ fontFamily: 'Cormorant Garamond, Georgia, serif', fontSize: '1.25rem', color: COLORS.ink, marginBottom: '1rem', fontWeight: 500 }}>
+        <div className="mb-12" style={{ background: COLORS.highlight, padding: '1.75rem', borderRadius: '3px' }}>
+          <h3 style={{ fontFamily: 'Cormorant Garamond, Georgia, serif', fontSize: '1.35rem', color: COLORS.ink, marginBottom: '1rem', fontWeight: 500 }}>
             Quick wins
           </h3>
           {analysis.flags.map((flag, i) => (
-            <p key={i} style={{ fontFamily: 'Cormorant Garamond, Georgia, serif', fontSize: '1rem', color: COLORS.inkLight, lineHeight: 1.6, marginBottom: '0.75rem' }}>
+            <p key={i} style={{ fontFamily: 'Cormorant Garamond, Georgia, serif', fontSize: '1.05rem', color: COLORS.inkLight, lineHeight: 1.6, marginBottom: '0.75rem' }}>
               <span style={{ color: COLORS.accent, marginRight: '0.5rem' }}>{flag.icon}</span>
               {flag.text}
             </p>
@@ -1699,17 +1750,17 @@ function ReportScreen({ data, onRestart }) {
 
       {recommendations.length > 0 && !aiAnalysis && (
         <div className="mb-12">
-          <h3 style={{ fontFamily: 'Cormorant Garamond, Georgia, serif', fontSize: '1.75rem', color: COLORS.ink, marginBottom: '1.5rem', fontWeight: 500 }}>
+          <h3 style={{ fontFamily: 'Cormorant Garamond, Georgia, serif', fontSize: '1.85rem', color: COLORS.ink, marginBottom: '1.5rem', fontWeight: 500 }}>
             Areas to explore
           </h3>
           {recommendations.map((rec, i) => (
             <div key={i} className="mb-8">
-              <h4 style={{ fontFamily: 'Cormorant Garamond, Georgia, serif', fontSize: '1.15rem', color: COLORS.accent, marginBottom: '0.75rem', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+              <h4 style={{ fontFamily: 'Cormorant Garamond, Georgia, serif', fontSize: '1.2rem', color: COLORS.accent, marginBottom: '0.75rem', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.1em' }}>
                 {rec.priority}
               </h4>
               <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
                 {rec.items.map((item, j) => (
-                  <li key={j} style={{ fontFamily: 'Cormorant Garamond, Georgia, serif', fontSize: '1.05rem', color: COLORS.ink, lineHeight: 1.6, paddingLeft: '1.5rem', position: 'relative', marginBottom: '0.5rem' }}>
+                  <li key={j} style={{ fontFamily: 'Cormorant Garamond, Georgia, serif', fontSize: '1.1rem', color: COLORS.ink, lineHeight: 1.6, paddingLeft: '1.5rem', position: 'relative', marginBottom: '0.5rem' }}>
                     <span style={{ position: 'absolute', left: 0, color: COLORS.accent }}>—</span>
                     {item}
                   </li>
@@ -1721,7 +1772,7 @@ function ReportScreen({ data, onRestart }) {
       )}
 
       <div style={{ background: '#FFF7E6', border: `1px solid ${COLORS.rule}`, padding: '1.5rem', marginBottom: '3rem' }}>
-        <p style={{ fontFamily: 'Cormorant Garamond, Georgia, serif', fontSize: '0.9rem', color: COLORS.inkLight, lineHeight: 1.6 }}>
+        <p style={{ fontFamily: 'Cormorant Garamond, Georgia, serif', fontSize: '0.95rem', color: COLORS.inkLight, lineHeight: 1.6 }}>
           <strong style={{ color: COLORS.ink }}>Important.</strong> This report is a self-reflection document, not medical advice. Score patterns are not diagnoses. Discuss findings with a qualified healthcare provider before starting supplements or making significant changes, especially if you take medications.
         </p>
       </div>
@@ -1731,7 +1782,7 @@ function ReportScreen({ data, onRestart }) {
           onClick={downloadReport}
           disabled={downloading}
           className="inline-flex items-center justify-center gap-3 px-8 py-4 transition-all"
-          style={{ background: COLORS.ink, color: COLORS.bg, fontFamily: 'Cormorant Garamond, Georgia, serif', fontSize: '1.05rem', letterSpacing: '0.05em', cursor: downloading ? 'wait' : 'pointer', border: 'none', opacity: downloading ? 0.7 : 1 }}
+          style={{ background: COLORS.ink, color: COLORS.bg, fontFamily: 'Cormorant Garamond, Georgia, serif', fontSize: '1.1rem', letterSpacing: '0.05em', cursor: downloading ? 'wait' : 'pointer', border: 'none', opacity: downloading ? 0.7 : 1 }}
         >
           {downloading ? <Loader2 size={18} className="animate-spin" strokeWidth={1.5} /> : <Download size={18} strokeWidth={1.5} />}
           {downloading ? 'Building document' : 'Download full report'}
@@ -1739,7 +1790,7 @@ function ReportScreen({ data, onRestart }) {
         <button
           onClick={onRestart}
           className="inline-flex items-center justify-center gap-2 px-6 py-4 transition-all"
-          style={{ background: 'transparent', color: COLORS.ink, fontFamily: 'Cormorant Garamond, Georgia, serif', fontSize: '1.05rem', border: `1px solid ${COLORS.rule}`, cursor: 'pointer' }}
+          style={{ background: 'transparent', color: COLORS.ink, fontFamily: 'Cormorant Garamond, Georgia, serif', fontSize: '1.1rem', border: `1px solid ${COLORS.rule}`, cursor: 'pointer' }}
         >
           Start over
         </button>
@@ -1749,10 +1800,27 @@ function ReportScreen({ data, onRestart }) {
 }
 
 // ==========================================================================
-// DOCX GENERATION
+// DOCX GENERATION (Phase 3.5: now accepts aiAnalysis)
 // ==========================================================================
 
-async function buildDocx(docx, data, analysis, recommendations) {
+function parseInlineRunsForDocx(text) {
+  const parts = [];
+  let remaining = text;
+  while (remaining.length) {
+    const bMatch = remaining.match(/^\*\*([^*]+)\*\*/);
+    const iMatch = remaining.match(/^\*([^*]+)\*/);
+    if (bMatch) { parts.push({ text: bMatch[1], bold: true }); remaining = remaining.slice(bMatch[0].length); }
+    else if (iMatch) { parts.push({ text: iMatch[1], italics: true }); remaining = remaining.slice(iMatch[0].length); }
+    else {
+      const nextStar = remaining.indexOf('*');
+      if (nextStar === -1) { parts.push({ text: remaining }); remaining = ''; }
+      else { parts.push({ text: remaining.slice(0, nextStar) }); remaining = remaining.slice(nextStar); }
+    }
+  }
+  return parts;
+}
+
+async function buildDocx(docx, data, analysis, recommendations, aiAnalysis) {
   const { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell, HeadingLevel,
           BorderStyle, WidthType, ShadingType, AlignmentType, PageBreak } = docx;
 
@@ -1849,40 +1917,15 @@ async function buildDocx(docx, data, analysis, recommendations) {
     children.push(para(''));
   }
 
-  if (Object.keys(data.foundation || {}).length > 0) {
-    children.push(...renderQA('Context & background', FOUNDATION_QUESTIONS, data.foundation || {}));
-  }
-
-  if (Object.keys(data.medical || {}).length > 0) {
-    children.push(...renderQA('Medical history', MEDICAL_QUESTIONS, data.medical || {}));
-  }
-
-  if (Object.keys(data.eatingHabits || {}).length > 0) {
-    children.push(...renderQA('Eating habits', EATING_HABITS_QUESTIONS, data.eatingHabits || {}));
-  }
-
-  if (Object.keys(data.foodDiaryWeekday || {}).length > 0) {
-    children.push(...renderQA('Food diary — weekday', FOOD_DIARY_WEEKDAY, data.foodDiaryWeekday || {}));
-  }
-  if (Object.keys(data.foodDiaryWeekend || {}).length > 0) {
-    children.push(...renderQA('Food diary — weekend', FOOD_DIARY_WEEKEND, data.foodDiaryWeekend || {}));
-  }
-
-  if (Object.keys(data.dailyRhythm || {}).length > 0) {
-    children.push(...renderQA('Daily rhythm', DAILY_RHYTHM_QUESTIONS, data.dailyRhythm || {}));
-  }
-
-  if (Object.keys(data.weekend || {}).length > 0) {
-    children.push(...renderQA('Weekend variation', WEEKEND_QUESTIONS, data.weekend || {}));
-  }
-
-  if (Object.keys(data.energy || {}).length > 0) {
-    children.push(...renderQA('Energy levels', ENERGY_QUESTIONS, data.energy || {}));
-  }
-
-  if (Object.keys(data.work || {}).length > 0) {
-    children.push(...renderQA('Work & stress', WORK_QUESTIONS, data.work || {}));
-  }
+  if (Object.keys(data.foundation || {}).length > 0) children.push(...renderQA('Context & background', FOUNDATION_QUESTIONS, data.foundation || {}));
+  if (Object.keys(data.medical || {}).length > 0) children.push(...renderQA('Medical history', MEDICAL_QUESTIONS, data.medical || {}));
+  if (Object.keys(data.eatingHabits || {}).length > 0) children.push(...renderQA('Eating habits', EATING_HABITS_QUESTIONS, data.eatingHabits || {}));
+  if (Object.keys(data.foodDiaryWeekday || {}).length > 0) children.push(...renderQA('Food diary — weekday', FOOD_DIARY_WEEKDAY, data.foodDiaryWeekday || {}));
+  if (Object.keys(data.foodDiaryWeekend || {}).length > 0) children.push(...renderQA('Food diary — weekend', FOOD_DIARY_WEEKEND, data.foodDiaryWeekend || {}));
+  if (Object.keys(data.dailyRhythm || {}).length > 0) children.push(...renderQA('Daily rhythm', DAILY_RHYTHM_QUESTIONS, data.dailyRhythm || {}));
+  if (Object.keys(data.weekend || {}).length > 0) children.push(...renderQA('Weekend variation', WEEKEND_QUESTIONS, data.weekend || {}));
+  if (Object.keys(data.energy || {}).length > 0) children.push(...renderQA('Energy levels', ENERGY_QUESTIONS, data.energy || {}));
+  if (Object.keys(data.work || {}).length > 0) children.push(...renderQA('Work & stress', WORK_QUESTIONS, data.work || {}));
 
   children.push(new Paragraph({ children: [new PageBreak()] }));
 
@@ -1953,6 +1996,59 @@ async function buildDocx(docx, data, analysis, recommendations) {
   });
   children.push(new Table({ width: { size: 9360, type: WidthType.DXA }, columnWidths: [3500, 5860], rows: labRows }));
 
+  // ====== AI ANALYSIS (Phase 3.5 fix) ======
+  if (aiAnalysis && typeof aiAnalysis === 'string' && aiAnalysis.trim().length > 0) {
+    children.push(new Paragraph({ children: [new PageBreak()] }));
+    children.push(heading('Personalized AI Analysis'));
+    children.push(para('Generated by Claude AI based on your specific answers. Not medical advice.', { italics: true, color: '5C5852', spacing: { after: 240 } }));
+
+    const lines = aiAnalysis.split('\n');
+    lines.forEach(rawLine => {
+      const line = rawLine.trim();
+      if (!line) {
+        children.push(new Paragraph({ children: [new TextRun({ text: '', font: 'Georgia', size: 22 })], spacing: { after: 80 } }));
+        return;
+      }
+      if (line.startsWith('### ')) {
+        children.push(new Paragraph({
+          heading: HeadingLevel.HEADING_3, spacing: { before: 240, after: 120 },
+          children: [new TextRun({ text: line.slice(4), font: 'Georgia', bold: true, size: 24, color: '6B5538' })],
+        }));
+      } else if (line.startsWith('## ')) {
+        children.push(new Paragraph({
+          heading: HeadingLevel.HEADING_2, spacing: { before: 320, after: 160 },
+          children: [new TextRun({ text: line.slice(3), font: 'Georgia', bold: true, size: 28, color: '8B6F47' })],
+        }));
+      } else if (line.startsWith('# ')) {
+        children.push(new Paragraph({
+          heading: HeadingLevel.HEADING_1, spacing: { before: 360, after: 200 },
+          children: [new TextRun({ text: line.slice(2), font: 'Georgia', bold: true, size: 32, color: '2A2824' })],
+        }));
+      } else if (line === '---') {
+        children.push(new Paragraph({
+          spacing: { before: 100, after: 100 },
+          border: { bottom: { color: 'D9D2C4', space: 1, style: BorderStyle.SINGLE, size: 6 } },
+          children: [new TextRun({ text: '', font: 'Georgia' })],
+        }));
+      } else if (/^[-*] /.test(line)) {
+        const parts = parseInlineRunsForDocx(line.slice(2));
+        const runs = parts.map(p => new TextRun({ text: p.text, font: 'Georgia', size: 22, bold: p.bold, italics: p.italics }));
+        children.push(new Paragraph({
+          spacing: { after: 80 },
+          indent: { left: 300 },
+          children: [new TextRun({ text: '— ', font: 'Georgia', size: 22, color: '8B6F47' }), ...runs],
+        }));
+      } else {
+        const parts = parseInlineRunsForDocx(line);
+        const runs = parts.map(p => new TextRun({ text: p.text, font: 'Georgia', size: 22, bold: p.bold, italics: p.italics }));
+        children.push(new Paragraph({
+          spacing: { after: 160 },
+          children: runs,
+        }));
+      }
+    });
+  }
+
   children.push(para(''));
   children.push(para('IMPORTANT', { bold: true, color: 'B45353' }));
   children.push(para('This report is a self-reflection document, not medical advice. Score patterns are not diagnoses. Discuss findings with a qualified healthcare provider before starting supplements or making significant changes, especially if you take medications. Some supplements interact with common drugs — for example, calcium, iron, and magnesium should be taken several hours apart from thyroid medications.', { italics: true, color: '5C5852' }));
@@ -1998,6 +2094,12 @@ const initialState = () => ({
 export default function App() {
   const [step, setStep] = useState(0);
   const [data, setData] = useState(initialState);
+  const [scale, setScale] = useState(1.0);
+
+  // Phase 3.5: scroll to top whenever step changes (fixes missing scroll-to-top)
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [step]);
 
   const update = (path, value) => {
     setData(prev => {
@@ -2016,9 +2118,9 @@ export default function App() {
   const totalSteps = 18;
   const progress = step === 0 ? 0 : step >= totalSteps ? 100 : (step / totalSteps) * 100;
 
-  const next = () => { setStep(s => s + 1); window.scrollTo({ top: 0, behavior: 'smooth' }); };
-  const back = () => { setStep(s => Math.max(0, s - 1)); window.scrollTo({ top: 0, behavior: 'smooth' }); };
-  const restart = () => { setStep(0); setData(initialState()); window.scrollTo({ top: 0, behavior: 'smooth' }); };
+  const next = () => setStep(s => s + 1);
+  const back = () => setStep(s => Math.max(0, s - 1));
+  const restart = () => { setStep(0); setData(initialState()); };
 
   const scanOrder = ['digestive', 'detox', 'pancreas', 'endocrine', 'nervous', 'musculoskeletal', 'autoimmune'];
 
@@ -2097,21 +2199,23 @@ export default function App() {
   };
 
   return (
-    <div style={{ minHeight: '100vh', background: COLORS.bg, color: COLORS.ink, fontFamily: 'Cormorant Garamond, Georgia, serif' }}>
-      <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&display=swap');
-        body { background: ${COLORS.bg}; }
-        button:focus-visible { outline: 2px solid ${COLORS.accent}; outline-offset: 2px; }
-        input:focus, textarea:focus { outline: none; }
-        ::selection { background: ${COLORS.highlight}; color: ${COLORS.ink}; }
-      `}</style>
-      <Header progress={progress} />
-      <main>{renderStep()}</main>
-      <footer style={{ borderTop: `1px solid ${COLORS.rule}`, padding: '2rem 1.5rem', marginTop: '4rem', textAlign: 'center' }}>
-        <p style={{ fontSize: '0.85rem', color: COLORS.inkLight, fontStyle: 'italic' }}>
-          Body Compass · A self-reflection tool · Not medical advice
-        </p>
-      </footer>
-    </div>
+    <FontSizeContext.Provider value={{ scale, setScale }}>
+      <div style={{ minHeight: '100vh', background: COLORS.bg, color: COLORS.ink, fontFamily: 'Cormorant Garamond, Georgia, serif', fontSize: `${scale}rem` }}>
+        <style>{`
+          @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&display=swap');
+          body { background: ${COLORS.bg}; }
+          button:focus-visible { outline: 2px solid ${COLORS.accent}; outline-offset: 2px; }
+          input:focus, textarea:focus { outline: none; }
+          ::selection { background: ${COLORS.highlight}; color: ${COLORS.ink}; }
+        `}</style>
+        <Header progress={progress} />
+        <main>{renderStep()}</main>
+        <footer style={{ borderTop: `1px solid ${COLORS.rule}`, padding: '2rem 1.5rem', marginTop: '4rem', textAlign: 'center' }}>
+          <p style={{ fontSize: '0.9rem', color: COLORS.inkLight, fontStyle: 'italic' }}>
+            Body Compass · A self-reflection tool · Not medical advice
+          </p>
+        </footer>
+      </div>
+    </FontSizeContext.Provider>
   );
 }
