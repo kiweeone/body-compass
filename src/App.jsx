@@ -1,6 +1,6 @@
-import React, { useState, useMemo } from 'react';
-import { ChevronRight, ChevronLeft, Download, AlertCircle, CheckCircle2, Compass, Loader2 } from 'lucide-react';
-
+import React, { useState, useMemo, useEffect, useRef } from 'react';
+import { ChevronRight, ChevronLeft, Download, AlertCircle, CheckCircle2, Compass, Loader2, Sparkles, Key, Shield } from 'lucide-react';
+const TURNSTILE_SITE_KEY = '0x4AAAAAADFMo_vNN4bZr1US';
 // ==========================================================================
 // QUESTION BANK
 // ==========================================================================
@@ -1102,6 +1102,123 @@ function NavButtons({ onBack, onNext, nextLabel = 'Continue', canProceed = true 
     </div>
   );
 }
+function TurnstileWidget({ onVerify, onError, theme = 'light' }) {
+  const widgetIdRef = useRef(null);
+  const containerRef = useRef(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    const renderWidget = () => {
+      if (cancelled || !window.turnstile || !containerRef.current) return;
+      if (widgetIdRef.current) {
+        try { window.turnstile.remove(widgetIdRef.current); } catch (e) {}
+      }
+      widgetIdRef.current = window.turnstile.render(containerRef.current, {
+        sitekey: TURNSTILE_SITE_KEY,
+        theme,
+        callback: (token) => onVerify(token),
+        'error-callback': () => onError && onError('Verification challenge failed'),
+        'expired-callback': () => onVerify(null),
+      });
+    };
+
+    if (window.turnstile) {
+      renderWidget();
+    } else {
+      const interval = setInterval(() => {
+        if (window.turnstile) {
+          clearInterval(interval);
+          renderWidget();
+        }
+      }, 200);
+      setTimeout(() => clearInterval(interval), 10000);
+    }
+
+    return () => {
+      cancelled = true;
+      if (widgetIdRef.current && window.turnstile) {
+        try { window.turnstile.remove(widgetIdRef.current); } catch (e) {}
+      }
+    };
+  }, []);
+
+  return <div ref={containerRef} style={{ minHeight: 65 }} />;
+}
+
+function SimpleMarkdown({ text }) {
+  if (!text) return null;
+  const lines = text.split('\n');
+  const elements = [];
+  let key = 0;
+
+  lines.forEach((line) => {
+    const trimmed = line.trim();
+    if (!trimmed) { elements.push(<div key={key++} style={{ height: '0.6em' }} />); return; }
+    if (trimmed.startsWith('### ')) {
+      elements.push(
+        <h4 key={key++} style={{ fontFamily: 'Cormorant Garamond, Georgia, serif', fontSize: '1.2rem', fontWeight: 600, color: COLORS.ink, marginTop: '1.5em', marginBottom: '0.5em' }}>
+          {trimmed.slice(4)}
+        </h4>
+      );
+    } else if (trimmed.startsWith('## ')) {
+      elements.push(
+        <h3 key={key++} style={{ fontFamily: 'Cormorant Garamond, Georgia, serif', fontSize: '1.55rem', fontWeight: 500, color: COLORS.ink, marginTop: '2em', marginBottom: '0.75em', borderBottom: `1px solid ${COLORS.rule}`, paddingBottom: '0.5em' }}>
+          {trimmed.slice(3)}
+        </h3>
+      );
+    } else if (trimmed.startsWith('# ')) {
+      elements.push(
+        <h2 key={key++} style={{ fontFamily: 'Cormorant Garamond, Georgia, serif', fontSize: '1.85rem', fontWeight: 500, color: COLORS.ink, marginTop: '0.5em', marginBottom: '0.75em' }}>
+          {trimmed.slice(2)}
+        </h2>
+      );
+    } else if (trimmed === '---') {
+      elements.push(<hr key={key++} style={{ border: 'none', borderTop: `1px solid ${COLORS.rule}`, margin: '1.5em 0' }} />);
+    } else if (/^- /.test(trimmed) || /^\* /.test(trimmed)) {
+      elements.push(
+        <p key={key++} style={{ fontFamily: 'Cormorant Garamond, Georgia, serif', fontSize: '1.05rem', color: COLORS.inkLight, lineHeight: 1.7, marginBottom: '0.4em', paddingLeft: '1.25em', position: 'relative' }}>
+          <span style={{ position: 'absolute', left: 0, color: COLORS.accent }}>—</span>
+          {renderInline(trimmed.slice(2), key)}
+        </p>
+      );
+    } else {
+      elements.push(
+        <p key={key++} style={{ fontFamily: 'Cormorant Garamond, Georgia, serif', fontSize: '1.05rem', color: COLORS.inkLight, lineHeight: 1.75, marginBottom: '0.85em' }}>
+          {renderInline(trimmed, key)}
+        </p>
+      );
+    }
+  });
+
+  return <>{elements}</>;
+}
+
+function renderInline(text, baseKey) {
+  const parts = [];
+  let remaining = text;
+  let n = 0;
+  while (remaining.length) {
+    const bMatch = remaining.match(/^\*\*([^*]+)\*\*/);
+    const iMatch = remaining.match(/^\*([^*]+)\*/);
+    if (bMatch) {
+      parts.push(<strong key={`${baseKey}-${n++}`} style={{ color: COLORS.ink, fontWeight: 600 }}>{bMatch[1]}</strong>);
+      remaining = remaining.slice(bMatch[0].length);
+    } else if (iMatch) {
+      parts.push(<em key={`${baseKey}-${n++}`} style={{ fontStyle: 'italic' }}>{iMatch[1]}</em>);
+      remaining = remaining.slice(iMatch[0].length);
+    } else {
+      const nextStar = remaining.indexOf('*');
+      if (nextStar === -1) {
+        parts.push(remaining);
+        remaining = '';
+      } else {
+        parts.push(remaining.slice(0, nextStar));
+        remaining = remaining.slice(nextStar);
+      }
+    }
+  }
+  return parts;
+}
 
 // ==========================================================================
 // SECTION SCREENS
@@ -1283,14 +1400,51 @@ function ScoreBar({ label, score, max, level, color }) {
 
 function ReportScreen({ data, onRestart }) {
   const [downloading, setDownloading] = useState(false);
+  const [aiMode, setAiMode] = useState(false);
+  const [aiConsent, setAiConsent] = useState(false);
+  const [byokExpanded, setByokExpanded] = useState(false);
+  const [byokKey, setByokKey] = useState('');
+  const [turnstileToken, setTurnstileToken] = useState(null);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiAnalysis, setAiAnalysis] = useState(null);
+  const [aiError, setAiError] = useState(null);
+
   const analysis = useMemo(() => generateInsights(data), [data]);
   const recommendations = useMemo(() => generateRecommendations(analysis.scores, data), [analysis.scores, data]);
+
+  const canSubmitAi = aiConsent && (byokKey.trim().length > 0 || turnstileToken);
+
+  const runAi = async () => {
+    setAiLoading(true);
+    setAiError(null);
+    try {
+      const body = { data };
+      if (byokKey.trim()) body.apiKey = byokKey.trim();
+      if (turnstileToken) body.turnstileToken = turnstileToken;
+
+      const res = await fetch('/api/analyze', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        setAiError(json.detail || json.error || 'Something went wrong');
+      } else {
+        setAiAnalysis(json.analysis);
+      }
+    } catch (e) {
+      setAiError(e.message);
+    } finally {
+      setAiLoading(false);
+    }
+  };
 
   const downloadReport = async () => {
     setDownloading(true);
     try {
       const docx = await import('docx');
-      const blob = await buildDocx(docx, data, analysis, recommendations);
+      const blob = await buildDocx(docx, data, analysis, recommendations, aiAnalysis);
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -1320,10 +1474,153 @@ function ReportScreen({ data, onRestart }) {
         ))}
       </div>
 
+      {!aiAnalysis && (
+        <div style={{ background: COLORS.highlight, border: `1px solid ${COLORS.rule}`, padding: '2rem', marginBottom: '3rem' }}>
+          <div className="flex gap-3 items-start mb-4">
+            <Sparkles size={20} style={{ color: COLORS.accentDark, flexShrink: 0, marginTop: '4px' }} strokeWidth={1.5} />
+            <div>
+              <h3 style={{ fontFamily: 'Cormorant Garamond, Georgia, serif', fontSize: '1.4rem', color: COLORS.ink, marginBottom: '0.5rem', fontWeight: 500 }}>
+                Want a deeper, personalized analysis?
+              </h3>
+              <p style={{ fontFamily: 'Cormorant Garamond, Georgia, serif', fontSize: '1rem', color: COLORS.inkLight, lineHeight: 1.6 }}>
+                The summary above uses pattern matching. For a much more thorough report that reads your specific answers, makes cross-system connections, and writes individualized recommendations, you can generate an AI-powered version. Takes about 30–60 seconds.
+              </p>
+            </div>
+          </div>
+
+          {!aiMode && (
+            <button
+              onClick={() => setAiMode(true)}
+              className="inline-flex items-center gap-2 px-5 py-3 transition-all"
+              style={{ background: COLORS.ink, color: COLORS.bg, fontFamily: 'Cormorant Garamond, Georgia, serif', fontSize: '1rem', letterSpacing: '0.05em', cursor: 'pointer', border: 'none', marginLeft: '2rem' }}
+            >
+              <Sparkles size={16} strokeWidth={1.5} />
+              Generate AI Analysis
+            </button>
+          )}
+
+          {aiMode && !aiLoading && (
+            <div style={{ marginTop: '1.5rem', marginLeft: '2rem' }}>
+              <div style={{ background: COLORS.paper, padding: '1rem', marginBottom: '1.5rem', border: `1px solid ${COLORS.rule}` }}>
+                <div className="flex gap-2 items-start">
+                  <Shield size={16} style={{ color: COLORS.accent, flexShrink: 0, marginTop: '3px' }} strokeWidth={1.5} />
+                  <div style={{ fontFamily: 'Cormorant Garamond, Georgia, serif', fontSize: '0.92rem', color: COLORS.inkLight, lineHeight: 1.55 }}>
+                    <strong style={{ color: COLORS.ink }}>How AI analysis works.</strong> Your answers (without your name) are sent to Anthropic's Claude API for processing and returned as a personalized report. Nothing is stored on our end. Anthropic's terms commit to not training on API inputs.
+                  </div>
+                </div>
+              </div>
+
+              <div style={{ marginBottom: '1.5rem' }}>
+                <button
+                  onClick={() => setByokExpanded(!byokExpanded)}
+                  className="inline-flex items-center gap-2 transition-opacity hover:opacity-70"
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: COLORS.accent, fontFamily: 'Cormorant Garamond, Georgia, serif', fontSize: '0.95rem', padding: 0 }}
+                >
+                  <Key size={14} strokeWidth={1.5} />
+                  {byokExpanded ? 'Hide' : 'Use your own Anthropic API key'} {!byokExpanded && '(optional)'}
+                </button>
+                {byokExpanded && (
+                  <div style={{ marginTop: '0.75rem' }}>
+                    <input
+                      type="password"
+                      value={byokKey}
+                      onChange={e => setByokKey(e.target.value)}
+                      placeholder="sk-ant-api03-..."
+                      style={{
+                        width: '100%', padding: '0.6rem 0.75rem', background: COLORS.paper, border: `1px solid ${COLORS.rule}`,
+                        fontFamily: 'monospace', fontSize: '0.85rem', color: COLORS.ink, outline: 'none',
+                      }}
+                    />
+                    <p style={{ fontFamily: 'Cormorant Garamond, Georgia, serif', fontSize: '0.85rem', color: COLORS.inkLight, marginTop: '0.5rem', fontStyle: 'italic' }}>
+                      Optional. If provided, your key is used for this report and you bypass our free-tier limits. Your key is sent only with this single request and is not stored.
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {!byokKey.trim() && (
+                <div style={{ marginBottom: '1.5rem' }}>
+                  <TurnstileWidget
+                    onVerify={token => setTurnstileToken(token)}
+                    onError={err => setAiError(err)}
+                  />
+                </div>
+              )}
+
+              <label className="flex gap-2 items-start mb-4" style={{ cursor: 'pointer' }}>
+                <input
+                  type="checkbox"
+                  checked={aiConsent}
+                  onChange={e => setAiConsent(e.target.checked)}
+                  style={{ marginTop: '5px', accentColor: COLORS.accent }}
+                />
+                <span style={{ fontFamily: 'Cormorant Garamond, Georgia, serif', fontSize: '0.95rem', color: COLORS.inkLight, lineHeight: 1.5 }}>
+                  I understand my answers will be sent to Anthropic for AI analysis, and that this is not medical advice.
+                </span>
+              </label>
+
+              <div className="flex gap-3 flex-wrap">
+                <button
+                  onClick={runAi}
+                  disabled={!canSubmitAi}
+                  className="inline-flex items-center gap-2 px-5 py-3 transition-all"
+                  style={{
+                    background: canSubmitAi ? COLORS.ink : COLORS.rule,
+                    color: COLORS.bg, fontFamily: 'Cormorant Garamond, Georgia, serif',
+                    fontSize: '1rem', letterSpacing: '0.05em',
+                    cursor: canSubmitAi ? 'pointer' : 'not-allowed', border: 'none',
+                  }}
+                >
+                  <Sparkles size={16} strokeWidth={1.5} />
+                  Generate AI Analysis
+                </button>
+                <button
+                  onClick={() => { setAiMode(false); setAiConsent(false); setByokExpanded(false); setByokKey(''); setTurnstileToken(null); }}
+                  style={{ background: 'transparent', border: 'none', color: COLORS.inkLight, fontFamily: 'Cormorant Garamond, Georgia, serif', fontSize: '0.95rem', cursor: 'pointer', padding: '0.75rem 0.5rem' }}
+                >
+                  Cancel
+                </button>
+              </div>
+
+              {aiError && (
+                <div style={{ marginTop: '1rem', padding: '0.85rem 1rem', background: '#FBE9E9', border: '1px solid #E5BFBF', color: '#8B3A3A', fontFamily: 'Cormorant Garamond, Georgia, serif', fontSize: '0.9rem' }}>
+                  {aiError}
+                </div>
+              )}
+            </div>
+          )}
+
+          {aiLoading && (
+            <div style={{ marginTop: '1.5rem', marginLeft: '2rem' }}>
+              <div className="flex items-center gap-3">
+                <Loader2 size={20} className="animate-spin" style={{ color: COLORS.accent }} strokeWidth={1.5} />
+                <p style={{ fontFamily: 'Cormorant Garamond, Georgia, serif', fontSize: '1rem', color: COLORS.inkLight, fontStyle: 'italic' }}>
+                  Claude is reading your answers and writing your report. This usually takes 30–60 seconds.
+                </p>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {aiAnalysis && (
+        <div className="mb-12">
+          <div className="flex gap-3 items-center mb-6">
+            <Sparkles size={22} style={{ color: COLORS.accent }} strokeWidth={1.5} />
+            <h3 style={{ fontFamily: 'Cormorant Garamond, Georgia, serif', fontSize: '1.75rem', color: COLORS.ink, fontWeight: 500 }}>
+              Personalized AI Analysis
+            </h3>
+          </div>
+          <div className="ai-analysis-content" style={{ fontFamily: 'Cormorant Garamond, Georgia, serif', fontSize: '1.05rem', color: COLORS.ink, lineHeight: 1.75 }}>
+            <SimpleMarkdown text={aiAnalysis} />
+          </div>
+        </div>
+      )}
+
       {analysis.insights.length > 0 && (
         <div className="mb-12">
-          <h3 style={{ fontFamily: 'Cormorant Garamond, Georgia, serif', fontSize: '1.75rem', color: COLORS.ink, marginBottom: '1.5rem', fontWeight: 500 }}>
-            What stands out
+          <h3 style={{ fontFamily: 'Cormorant Garamond, Georgia, serif', fontSize: aiAnalysis ? '1.5rem' : '1.75rem', color: COLORS.ink, marginBottom: '1.5rem', fontWeight: 500 }}>
+            {aiAnalysis ? 'Quick pattern detection' : 'What stands out'}
           </h3>
           {analysis.insights.map((insight, i) => (
             <div key={i} style={{ borderLeft: `2px solid ${COLORS.accent}`, paddingLeft: '1.5rem', marginBottom: '2rem' }}>
@@ -1352,7 +1649,7 @@ function ReportScreen({ data, onRestart }) {
         </div>
       )}
 
-      {recommendations.length > 0 && (
+      {recommendations.length > 0 && !aiAnalysis && (
         <div className="mb-12">
           <h3 style={{ fontFamily: 'Cormorant Garamond, Georgia, serif', fontSize: '1.75rem', color: COLORS.ink, marginBottom: '1.5rem', fontWeight: 500 }}>
             Areas to explore
@@ -1375,28 +1672,9 @@ function ReportScreen({ data, onRestart }) {
         </div>
       )}
 
-      <div style={{ background: COLORS.paper, border: `1px solid ${COLORS.rule}`, padding: '2rem', marginBottom: '3rem' }}>
-        <h3 style={{ fontFamily: 'Cormorant Garamond, Georgia, serif', fontSize: '1.5rem', color: COLORS.ink, marginBottom: '1rem', fontWeight: 500 }}>
-          Tests worth requesting
-        </h3>
-        <p style={{ fontFamily: 'Cormorant Garamond, Georgia, serif', fontSize: '0.95rem', color: COLORS.inkLight, marginBottom: '1.5rem', fontStyle: 'italic' }}>
-          Bring this list to your doctor or healthcare provider as a starting point for conversation.
-        </p>
-        {LAB_TESTS.map((t, i) => (
-          <div key={i} style={{ borderTop: i > 0 ? `1px solid ${COLORS.rule}` : 'none', paddingTop: i > 0 ? '0.75rem' : 0, paddingBottom: '0.75rem' }}>
-            <p style={{ fontFamily: 'Cormorant Garamond, Georgia, serif', fontSize: '1rem', color: COLORS.ink, marginBottom: '0.25rem' }}>
-              {t.name}
-            </p>
-            <p style={{ fontFamily: 'Cormorant Garamond, Georgia, serif', fontSize: '0.9rem', color: COLORS.inkLight, lineHeight: 1.5 }}>
-              {t.why}
-            </p>
-          </div>
-        ))}
-      </div>
-
       <div style={{ background: '#FFF7E6', border: `1px solid ${COLORS.rule}`, padding: '1.5rem', marginBottom: '3rem' }}>
         <p style={{ fontFamily: 'Cormorant Garamond, Georgia, serif', fontSize: '0.9rem', color: COLORS.inkLight, lineHeight: 1.6 }}>
-          <strong style={{ color: COLORS.ink }}>Important.</strong> This report is a self-reflection document, not medical advice. Score patterns are not diagnoses. Discuss findings with a qualified healthcare provider before starting supplements or making significant changes, especially if you take medications. Some supplements interact with common drugs (e.g., calcium, iron, and magnesium should be taken several hours apart from thyroid medications).
+          <strong style={{ color: COLORS.ink }}>Important.</strong> This report is a self-reflection document, not medical advice. Score patterns are not diagnoses. Discuss findings with a qualified healthcare provider before starting supplements or making significant changes, especially if you take medications.
         </p>
       </div>
 
