@@ -1474,7 +1474,7 @@ function ReportScreen({ data, onRestart }) {
   const runAi = async () => {
     setAiLoading(true);
     setAiError(null);
-    setAiAnalysis('');
+    setAiAnalysis(null);
     try {
       const body = { data };
       if (byokKey.trim()) body.apiKey = byokKey.trim();
@@ -1486,54 +1486,21 @@ function ReportScreen({ data, onRestart }) {
         body: JSON.stringify(body),
       });
 
+      const json = await res.json();
+
       if (!res.ok) {
-        const json = await res.json().catch(() => ({ error: `Request failed (${res.status})` }));
         setAiError(json.detail || json.error || 'Something went wrong');
-        setAiAnalysis(null);
         return;
       }
 
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = '';
-      let accumulated = '';
-      let streamError = null;
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buffer += decoder.decode(value, { stream: true });
-        const parts = buffer.split('\n\n');
-        buffer = parts.pop();
-
-        for (const part of parts) {
-          const line = part.trim();
-          if (!line.startsWith('data: ')) continue;
-          const dataStr = line.slice(6);
-          try {
-            const evt = JSON.parse(dataStr);
-            if (evt.type === 'chunk') {
-              accumulated += evt.text;
-              setAiAnalysis(accumulated);
-            } else if (evt.type === 'error') {
-              streamError = evt.message || 'Stream error';
-            }
-          } catch (parseErr) {
-            // ignore
-          }
-        }
+      if (!json.analysis) {
+        setAiError('No analysis returned');
+        return;
       }
 
-      if (streamError) {
-        setAiError(streamError);
-        setAiAnalysis(null);
-      } else if (!accumulated) {
-        setAiError('No content received from the analysis service');
-        setAiAnalysis(null);
-      }
+      setAiAnalysis(json.analysis);
     } catch (e) {
       setAiError(e.message);
-      setAiAnalysis(null);
     } finally {
       setAiLoading(false);
     }

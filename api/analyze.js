@@ -177,16 +177,7 @@ export default async function handler(req, res) {
     const client = new Anthropic({ apiKey });
     const userContent = formatUserData(data);
 
-    // ====== STREAMING RESPONSE ======
-    // Once we start writing to the response, we can no longer change status code
-    // or headers. All validation must have passed by this point.
-    res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
-    res.setHeader('Cache-Control', 'no-cache, no-transform');
-    res.setHeader('Connection', 'keep-alive');
-    res.setHeader('X-Accel-Buffering', 'no'); // Disable nginx buffering on proxies
-    res.flushHeaders && res.flushHeaders();
-
-    const stream = await client.messages.stream({
+    const message = await client.messages.create({
       model: 'claude-sonnet-4-6',
       max_tokens: 16000,
       system: SYSTEM_PROMPT,
@@ -198,23 +189,19 @@ export default async function handler(req, res) {
       ],
     });
 
-    try {
-      for await (const event of stream) {
-        if (event.type === 'content_block_delta' && event.delta?.type === 'text_delta') {
-          const chunk = event.delta.text;
-          // Use SSE format: data: <payload>\n\n
-          const payload = JSON.stringify({ type: 'chunk', text: chunk });
-          res.write(`data: ${payload}\n\n`);
-        } else if (event.type === 'message_stop') {
-          res.write(`data: ${JSON.stringify({ type: 'done' })}\n\n`);
-        }
-      }
-    } catch (streamErr) {
-      console.error('Stream error:', streamErr.message);
-      res.write(`data: ${JSON.stringify({ type: 'error', message: streamErr.message })}\n\n`);
-    }
+    const analysisText = message.content
+      .filter(block => block.type === 'text')
+      .map(block => block.text)
+      .join('\n');
 
-    res.end();
+    return res.status(200).json({
+      analysis: analysisText,
+      model: message.model,
+      usage: {
+        input_tokens: message.usage.input_tokens,
+        output_tokens: message.usage.output_tokens,
+      },
+    });
   } catch (err) {
     console.error('Analysis error:', err.message);
     // Only return JSON error if we haven't started streaming yet
