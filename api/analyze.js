@@ -12,7 +12,7 @@ import { Ratelimit } from '@upstash/ratelimit';
 
 export const config = {
   runtime: 'nodejs',
-  maxDuration: 60,
+  maxDuration: 300,
 };
 
 // ====== RATE LIMITER SETUP ======
