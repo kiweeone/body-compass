@@ -3,21 +3,39 @@ import { Redis } from '@upstash/redis';
 import { Ratelimit } from '@upstash/ratelimit';
 
 // ============================================================================
-// /api/analyze — serverless function for AI-powered Body Compass analysis
+// /api/analyze — streaming serverless function for AI-powered Body Compass
 // ============================================================================
-// Phase 3, Step 2: Minimal working version.
-// Receives questionnaire data, calls Claude, returns structured analysis.
-// Layers to add in subsequent steps: Turnstile validation, rate limiting,
-// BYOK support, origin verification, response streaming.
+// Phase 3.1: Streaming response. Avoids Vercel's 60-second timeout by sending
+// bytes continuously as Claude generates them. Frontend reads the stream
+// chunk by chunk and renders progressively.
 // ============================================================================
 
 export const config = {
   runtime: 'nodejs',
-  maxDuration: 60, // Hobby plan max; analysis usually takes 20-45 seconds
+  maxDuration: 60,
 };
 
-// System prompt — engineered to match the depth of a real consultation.
-// Iterate on this carefully; it's the single biggest lever for output quality.
+// ====== RATE LIMITER SETUP ======
+let ratelimiter = null;
+if (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN) {
+  const redis = new Redis({
+    url: process.env.UPSTASH_REDIS_REST_URL,
+    token: process.env.UPSTASH_REDIS_REST_TOKEN,
+  });
+  ratelimiter = new Ratelimit({
+    redis,
+    limiter: Ratelimit.fixedWindow(3, '24h'),
+    analytics: false,
+    prefix: 'body-compass-ratelimit',
+  });
+}
+
+function getClientIp(req) {
+  const xff = req.headers['x-forwarded-for'];
+  if (xff) return xff.split(',')[0].trim();
+  return req.headers['x-real-ip'] || req.socket?.remoteAddress || 'unknown';
+}
+
 const SYSTEM_PROMPT = `You are an experienced integrative health analyst writing a personalized self-reflection report based on a detailed questionnaire. Your role is to mirror the depth and care of a thoughtful clinician's intake review, without crossing into medical diagnosis or prescription.
 
 Your output style:
@@ -51,17 +69,14 @@ Important constraints:
 - If the user mentioned specific medications (e.g., thyroid replacement), flag any supplement interactions (e.g., calcium/iron/magnesium spacing).
 - Avoid alarmism. Be honest about concerning patterns without catastrophizing.
 - Never invent specific lab values, dates, or symptoms the user did not provide.
-- If critical data is missing for a confident insight, say so rather than fabricating connection.
-- Keep total response under 6000 words. Be substantive but concise; avoid filler.`;
+- If critical data is missing for a confident insight, say so rather than fabricating connection.`;
 
 function formatUserData(data) {
-  // Transform the raw questionnaire data into clean, readable prose for Claude
-  // Strip the optional name field for privacy
   const sections = [];
 
   if (data.personal) {
     const p = { ...data.personal };
-    delete p.name; // Privacy: name is never sent to Claude
+    delete p.name;
     sections.push(`PERSONAL: ${JSON.stringify(p, null, 2)}`);
   }
 
@@ -76,13 +91,10 @@ function formatUserData(data) {
   if (data.energy) sections.push(`ENERGY LEVELS: ${JSON.stringify(data.energy, null, 2)}`);
   if (data.work) sections.push(`WORK & STRESS: ${JSON.stringify(data.work, null, 2)}`);
 
-  // Body scan scores
   const scanSections = ['digestive', 'detox', 'pancreas', 'endocrine', 'nervous', 'musculoskeletal', 'autoimmune'];
   const scanData = {};
   scanSections.forEach(key => {
-    if (Array.isArray(data[key])) {
-      scanData[key] = data[key];
-    }
+    if (Array.isArray(data[key])) scanData[key] = data[key];
   });
   if (Object.keys(scanData).length) {
     sections.push(`BODY SCAN SCORES (0=Never, 1=Rarely, 2=Sometimes, 3=Often, 4=Always):\n${JSON.stringify(scanData, null, 2)}`);
@@ -90,39 +102,14 @@ function formatUserData(data) {
 
   return sections.join('\n\n---\n\n');
 }
-// ====== RATE LIMITER SETUP ======
-// 3 requests per IP per 24 hours. Only runs if Redis env vars are configured;
-// in local dev without them, rate limiting is silently skipped.
-let ratelimiter = null;
-if (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN) {
-  const redis = new Redis({
-    url: process.env.UPSTASH_REDIS_REST_URL,
-    token: process.env.UPSTASH_REDIS_REST_TOKEN,
-  });
-  ratelimiter = new Ratelimit({
-    redis,
-    limiter: Ratelimit.fixedWindow(3, '24h'),
-    analytics: false,
-    prefix: 'body-compass-ratelimit',
-  });
-}
-
-function getClientIp(req) {
-  // Vercel sets x-forwarded-for; fall back to other headers
-  const xff = req.headers['x-forwarded-for'];
-  if (xff) return xff.split(',')[0].trim();
-  return req.headers['x-real-ip'] || req.socket?.remoteAddress || 'unknown';
-}
 
 export default async function handler(req, res) {
-  // Only accept POST
+  // ====== METHOD CHECK ======
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
   // ====== ORIGIN VERIFICATION ======
-  // Allow requests only from our own domain in production.
-  // Allow localhost and 127.0.0.1 origins for local development.
   const ALLOWED_ORIGINS = [
     'https://compass.kiwee.one',
     'http://localhost:3000',
@@ -132,9 +119,6 @@ export default async function handler(req, res) {
   ];
   const origin = req.headers.origin || req.headers.referer || '';
   const originOk = ALLOWED_ORIGINS.some(allowed => origin.startsWith(allowed));
-
-  // In production (when we have a turnstile secret), enforce origin.
-  // In local dev or when running tests without a browser, allow it.
   const isProduction = !!process.env.TURNSTILE_SECRET_KEY && process.env.NODE_ENV === 'production';
   if (isProduction && !originOk) {
     return res.status(403).json({ error: 'Origin not allowed' });
@@ -146,12 +130,11 @@ export default async function handler(req, res) {
     if (!data || typeof data !== 'object') {
       return res.status(400).json({ error: 'Missing or invalid data payload' });
     }
-// ====== RATE LIMIT CHECK ======
-    // Skip rate limiting for BYOK users (they pay their own way).
-    // Skip in local dev if Redis isn't configured.
+
+    // ====== RATE LIMIT CHECK ======
     if (!userApiKey && ratelimiter) {
       const ip = getClientIp(req);
-      const { success, limit, remaining, reset } = await ratelimiter.limit(ip);
+      const { success, limit, reset } = await ratelimiter.limit(ip);
       if (!success) {
         const resetIn = Math.ceil((reset - Date.now()) / 1000 / 60 / 60);
         return res.status(429).json({
@@ -164,24 +147,17 @@ export default async function handler(req, res) {
     }
 
     // ====== TURNSTILE VERIFICATION ======
-    // Skip if user provided their own API key (BYOK trusts the user to pay).
-    // Skip if we're in development without a Turnstile secret configured.
     const turnstileSecret = process.env.TURNSTILE_SECRET_KEY;
     const skipTurnstile = !!userApiKey || !turnstileSecret;
-
     if (!skipTurnstile) {
       if (!turnstileToken) {
         return res.status(400).json({ error: 'Missing verification token' });
       }
-
       try {
         const verifyRes = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
           method: 'POST',
           headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-          body: new URLSearchParams({
-            secret: turnstileSecret,
-            response: turnstileToken,
-          }),
+          body: new URLSearchParams({ secret: turnstileSecret, response: turnstileToken }),
         });
         const verifyJson = await verifyRes.json();
         if (!verifyJson.success) {
@@ -193,20 +169,26 @@ export default async function handler(req, res) {
       }
     }
 
-    // BYOK: if user provided their own API key, use it; otherwise use server's
     const apiKey = userApiKey || process.env.ANTHROPIC_API_KEY;
-
     if (!apiKey) {
       return res.status(500).json({ error: 'Server is not configured (no API key available)' });
     }
 
     const client = new Anthropic({ apiKey });
-
     const userContent = formatUserData(data);
 
-    const message = await client.messages.create({
+    // ====== STREAMING RESPONSE ======
+    // Once we start writing to the response, we can no longer change status code
+    // or headers. All validation must have passed by this point.
+    res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
+    res.setHeader('Cache-Control', 'no-cache, no-transform');
+    res.setHeader('Connection', 'keep-alive');
+    res.setHeader('X-Accel-Buffering', 'no'); // Disable nginx buffering on proxies
+    res.flushHeaders && res.flushHeaders();
+
+    const stream = await client.messages.stream({
       model: 'claude-sonnet-4-6',
-      max_tokens: 7000,
+      max_tokens: 16000,
       system: SYSTEM_PROMPT,
       messages: [
         {
@@ -216,25 +198,33 @@ export default async function handler(req, res) {
       ],
     });
 
-    // Extract the text from the response
-    const analysisText = message.content
-      .filter(block => block.type === 'text')
-      .map(block => block.text)
-      .join('\n');
+    try {
+      for await (const event of stream) {
+        if (event.type === 'content_block_delta' && event.delta?.type === 'text_delta') {
+          const chunk = event.delta.text;
+          // Use SSE format: data: <payload>\n\n
+          const payload = JSON.stringify({ type: 'chunk', text: chunk });
+          res.write(`data: ${payload}\n\n`);
+        } else if (event.type === 'message_stop') {
+          res.write(`data: ${JSON.stringify({ type: 'done' })}\n\n`);
+        }
+      }
+    } catch (streamErr) {
+      console.error('Stream error:', streamErr.message);
+      res.write(`data: ${JSON.stringify({ type: 'error', message: streamErr.message })}\n\n`);
+    }
 
-    return res.status(200).json({
-      analysis: analysisText,
-      model: message.model,
-      usage: {
-        input_tokens: message.usage.input_tokens,
-        output_tokens: message.usage.output_tokens,
-      },
-    });
+    res.end();
   } catch (err) {
     console.error('Analysis error:', err.message);
-    return res.status(500).json({
-      error: 'Analysis failed',
-      detail: err.message,
-    });
+    // Only return JSON error if we haven't started streaming yet
+    if (!res.headersSent) {
+      return res.status(500).json({ error: 'Analysis failed', detail: err.message });
+    } else {
+      try {
+        res.write(`data: ${JSON.stringify({ type: 'error', message: err.message })}\n\n`);
+        res.end();
+      } catch (e) {}
+    }
   }
 }

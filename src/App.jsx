@@ -1417,6 +1417,7 @@ function ReportScreen({ data, onRestart }) {
   const runAi = async () => {
     setAiLoading(true);
     setAiError(null);
+    setAiAnalysis(''); // Start with empty string for streaming append
     try {
       const body = { data };
       if (byokKey.trim()) body.apiKey = byokKey.trim();
@@ -1427,14 +1428,61 @@ function ReportScreen({ data, onRestart }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       });
-      const json = await res.json();
+
+      // If non-2xx, the server returned JSON error before any streaming
       if (!res.ok) {
+        const json = await res.json().catch(() => ({ error: `Request failed (${res.status})` }));
         setAiError(json.detail || json.error || 'Something went wrong');
-      } else {
-        setAiAnalysis(json.analysis);
+        setAiAnalysis(null);
+        return;
+      }
+
+      // Stream reading
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+      let accumulated = '';
+      let streamError = null;
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+
+        // Parse SSE events from buffer
+        const parts = buffer.split('\n\n');
+        buffer = parts.pop(); // keep incomplete event in buffer
+
+        for (const part of parts) {
+          const line = part.trim();
+          if (!line.startsWith('data: ')) continue;
+          const dataStr = line.slice(6);
+          try {
+            const evt = JSON.parse(dataStr);
+            if (evt.type === 'chunk') {
+              accumulated += evt.text;
+              setAiAnalysis(accumulated);
+            } else if (evt.type === 'error') {
+              streamError = evt.message || 'Stream error';
+            } else if (evt.type === 'done') {
+              // Stream finished cleanly
+            }
+          } catch (parseErr) {
+            // Ignore unparseable chunks (shouldn't happen)
+          }
+        }
+      }
+
+      if (streamError) {
+        setAiError(streamError);
+        setAiAnalysis(null);
+      } else if (!accumulated) {
+        setAiError('No content received from the analysis service');
+        setAiAnalysis(null);
       }
     } catch (e) {
       setAiError(e.message);
+      setAiAnalysis(null);
     } finally {
       setAiLoading(false);
     }
@@ -1590,7 +1638,7 @@ function ReportScreen({ data, onRestart }) {
             </div>
           )}
 
-          {aiLoading && (
+          {aiLoading && !aiAnalysis && (
             <div style={{ marginTop: '1.5rem', marginLeft: '2rem' }}>
               <div className="flex items-center gap-3">
                 <Loader2 size={20} className="animate-spin" style={{ color: COLORS.accent }} strokeWidth={1.5} />
